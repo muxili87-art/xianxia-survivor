@@ -1,0 +1,17 @@
+{
+  "description": "仙台问剑 · 3D 修仙割肉（程序化美术，零素材）",
+  "appid": "touristappid",
+  "projectname": "xianxia-survivor",
+  "compileType": "game",
+  "libVersion": "3.0.0",
+  "setting": {
+    "es6": true,
+    "enhance": true,
+    "minified": false,
+    "postcss": false,
+    "urlCheck": false,
+    "autoAudits": false,
+    "uglifyFileName": false
+  },
+  "condition": {}
+}

@@ -1,0 +1,1016 @@
+/* ============================================================
+ * 仙台问剑 · UI
+ * ============================================================ */
+:root {
+  --ink: #03080f;
+  --ink2: #081420;
+  --jade: #4de8ff;
+  --jade-soft: #9ff0ff;
+  --gold: #ffcf6b;
+  --gold-deep: #ffa63a;
+  --cinnabar: #ff5a4d;
+  --purple: #a97bff;
+  --text: #eaf6ff;
+  --text-dim: #8fb3c7;
+  --serif: "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+
+  /* 全局字号系数。
+   *
+   * 全部字号都写成 calc(Npx * var(--fs, 1))，大字号模式只改这一个变量。
+   *
+   * 为什么不做「大字号模式下给十几个选择器各写一遍 font-size」：
+   * 那种写法**一定会漏**。这份样式表里有 97 处字号，今天挑出 20 处
+   * 调大，明天新加一个面板就忘了 —— 而且漏掉的那些不会有任何报错，
+   * 只是「有的字大了有的没大」，看起来像排版没做完。
+   * 挂到一个变量上，新增的样式只要照抄 calc(...) 就自动跟着走，
+   * 并且可以用一行脚本核对「有没有漏网的 font-size」。 */
+  --fs: 1;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--sans);
+  user-select: none; -webkit-user-select: none;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+#touchZone {
+  position: fixed; inset: 0; z-index: 5;
+  touch-action: none;
+}
+
+/* ---------------- 摇杆 ---------------- */
+#stick {
+  position: fixed; left: 0; top: 0; z-index: 12;
+  width: 132px; height: 132px; margin: 0;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid rgba(77, 232, 255, 0.30);
+  background: radial-gradient(circle, rgba(77,232,255,0.10) 0%, rgba(77,232,255,0.02) 62%, transparent 72%);
+  box-shadow: 0 0 34px rgba(77,232,255,0.16), inset 0 0 26px rgba(77,232,255,0.08);
+  opacity: 0; transition: opacity .16s; pointer-events: none;
+}
+#stick.on { opacity: 1; }
+#stickKnob {
+  position: absolute; left: 50%; top: 50%;
+  width: 58px; height: 58px; border-radius: 50%;
+  transform: translate(-50%,-50%);
+  background: radial-gradient(circle at 34% 30%, rgba(255,255,255,0.95), rgba(77,232,255,0.75) 52%, rgba(30,150,200,0.55) 100%);
+  box-shadow: 0 0 22px rgba(77,232,255,0.65);
+}
+
+/* ---------------- HUD ---------------- */
+#hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+
+#topLeft { position: absolute; left: max(14px, env(safe-area-inset-left)); top: max(12px, env(safe-area-inset-top)); width: min(40vw, 300px); }
+#topCenter { position: absolute; left: 50%; top: max(10px, env(safe-area-inset-top)); transform: translateX(-50%); text-align: center; }
+#topRight { position: absolute; right: max(14px, env(safe-area-inset-right)); top: max(12px, env(safe-area-inset-top)); display: flex; align-items: center; gap: 10px; }
+
+.bar {
+  position: relative; height: 22px; border-radius: 11px; overflow: hidden;
+  background: rgba(4, 14, 24, 0.72);
+  border: 1px solid rgba(120, 190, 225, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 3px 14px rgba(0,0,0,0.45);
+  margin-bottom: 7px;
+}
+.bar.thin { height: 15px; border-radius: 8px; }
+.fill {
+  position: absolute; inset: 0 auto 0 0; width: 100%;
+  background: linear-gradient(90deg, #ff6b5a, #e0203c);
+  transition: width .18s ease-out;
+  box-shadow: 0 0 14px rgba(255, 70, 80, 0.5);
+}
+.fill.low { animation: lowPulse .7s infinite; }
+@keyframes lowPulse { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.8); } }
+.fill.xp { background: linear-gradient(90deg, #ffcf6b, #ff9d2e); box-shadow: 0 0 12px rgba(255,190,90,0.45); }
+
+.barText {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: calc(12px * var(--fs, 1)); font-weight: 600; letter-spacing: .4px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+}
+.barText.small { font-size: calc(10.5px * var(--fs, 1)); letter-spacing: 1px; }
+.barLabel { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: calc(10px * var(--fs, 1)); color: rgba(255,255,255,0.55); letter-spacing: 2px; }
+
+#timer {
+  font-family: var(--serif); font-size: calc(clamp(26px, 6vw, 42px) * var(--fs, 1)); font-weight: 700;
+  letter-spacing: 3px; color: var(--text);
+  text-shadow: 0 0 18px rgba(77,232,255,0.55), 0 2px 8px rgba(0,0,0,0.9);
+  line-height: 1;
+}
+#waveHint {
+  margin-top: 6px; font-size: calc(12px * var(--fs, 1)); letter-spacing: 1px; color: var(--jade);
+  opacity: 0; transform: translateY(-6px); transition: all .35s;
+  text-shadow: 0 0 12px rgba(77,232,255,0.6);
+}
+#waveHint.on { opacity: 1; transform: translateY(0); }
+
+/* 教学提示：底部一行。做得比波次提示更「安静」——
+   它出现得晚、消失得慢，不该抢走战斗画面的注意力。 */
+#tipLine {
+  position: absolute; left: 50%; bottom: 92px;
+  transform: translateX(-50%) translateY(8px);
+  padding: 7px 16px; border-radius: 999px;
+  font-size: calc(13px * var(--fs, 1)); letter-spacing: .5px; white-space: nowrap;
+  color: #cfeaf5;
+  background: rgba(8, 22, 34, 0.62);
+  border: 1px solid rgba(77, 232, 255, 0.22);
+  backdrop-filter: blur(6px);
+  opacity: 0; pointer-events: none;
+  transition: opacity .4s ease, transform .4s ease;
+}
+#tipLine.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (max-width: 560px) {
+  #tipLine { font-size: calc(11.5px * var(--fs, 1)); padding: 6px 12px; bottom: 84px; white-space: normal; max-width: 84vw; text-align: center; }
+}
+
+#killWrap {
+  font-size: calc(12px * var(--fs, 1)); color: var(--text-dim); letter-spacing: 1px;
+  background: rgba(4,14,24,0.7); border: 1px solid rgba(120,190,225,0.2);
+  padding: 6px 12px; border-radius: 8px;
+}
+#killWrap b { color: var(--gold); font-size: calc(15px * var(--fs, 1)); font-family: var(--serif); }
+
+#pauseBtn {
+  pointer-events: auto;
+  width: 38px; height: 38px; border-radius: 10px;
+  background: rgba(4,14,24,0.7); border: 1px solid rgba(120,190,225,0.25);
+  color: var(--text); font-size: calc(15px * var(--fs, 1)); letter-spacing: 1px; cursor: pointer;
+}
+#pauseBtn:active { background: rgba(77,232,255,0.18); }
+
+/* Boss 血条 */
+#bossBar {
+  position: absolute; left: 50%; top: max(88px, calc(env(safe-area-inset-top) + 76px));
+  transform: translateX(-50%); width: min(72vw, 520px);
+  opacity: 0; transition: opacity .35s; text-align: center;
+}
+#bossBar.on { opacity: 1; }
+#bossName {
+  font-family: var(--serif); font-size: calc(14px * var(--fs, 1)); letter-spacing: 4px; color: var(--cinnabar);
+  text-shadow: 0 0 14px rgba(255,60,70,0.7); margin-bottom: 5px;
+}
+.bossTrack {
+  height: 9px; border-radius: 5px; overflow: hidden;
+  background: rgba(4,14,24,0.8); border: 1px solid rgba(255,90,77,0.35);
+}
+#bossFill {
+  height: 100%; width: 100%;
+  background: linear-gradient(90deg, #ff2d3f, #ff8a3d);
+  box-shadow: 0 0 14px rgba(255,60,70,0.7);
+  transition: width .16s linear;
+}
+
+/* 播报 */
+#announce {
+  position: absolute; left: 50%; top: 30%; transform: translate(-50%, -50%) scale(0.92);
+  text-align: center; opacity: 0; transition: all .28s cubic-bezier(.2,1.4,.5,1);
+  pointer-events: none;
+}
+#announce.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+#announce b {
+  display: block; font-family: var(--serif); font-size: calc(clamp(24px, 6vw, 40px) * var(--fs, 1));
+  font-weight: 700; letter-spacing: 6px;
+  text-shadow: 0 0 26px currentColor, 0 3px 12px rgba(0,0,0,0.9);
+}
+#announce i {
+  display: block; margin-top: 6px; font-style: normal; font-size: calc(12.5px * var(--fs, 1));
+  color: var(--text-dim); letter-spacing: 2px;
+}
+
+#bossWarning {
+  position: absolute; left: 50%; top: 42%; transform: translate(-50%,-50%) scale(1.3);
+  font-family: var(--serif); font-size: calc(clamp(30px, 9vw, 62px) * var(--fs, 1)); font-weight: 900;
+  letter-spacing: 10px; color: var(--cinnabar);
+  text-shadow: 0 0 40px rgba(255,40,60,0.9), 0 0 90px rgba(255,40,60,0.5);
+  opacity: 0; transition: all .3s; pointer-events: none;
+}
+#bossWarning.on { opacity: 1; transform: translate(-50%,-50%) scale(1); animation: warnShake .5s; }
+@keyframes warnShake {
+  0%,100% { margin-left: 0; } 25% { margin-left: -8px; } 75% { margin-left: 8px; }
+}
+
+/* 功法栏 */
+#skillBar {
+  position: absolute; left: max(14px, env(safe-area-inset-left)); bottom: max(16px, env(safe-area-inset-bottom));
+  display: flex; flex-wrap: wrap; gap: 6px; max-width: 62vw;
+}
+.skill {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 42px; height: 42px; border-radius: 10px;
+  background: rgba(4,14,24,0.78); border: 1px solid rgba(77,232,255,0.4);
+  font-family: var(--serif); transition: transform .2s;
+}
+.skill .si { font-size: calc(17px * var(--fs, 1)); line-height: 1; }
+.skill .sl { font-size: calc(9px * var(--fs, 1)); opacity: 0.85; margin-top: 2px; letter-spacing: .5px; }
+.skill.pop { transform: scale(1.28); }
+
+/* 神行符（广告位） */
+#boostBtn {
+  position: absolute; right: max(14px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom));
+  pointer-events: none; opacity: 0; transform: translateY(14px); transition: all .35s;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 9px 16px; border-radius: 12px;
+  background: linear-gradient(180deg, rgba(169,123,255,0.30), rgba(120,70,220,0.24));
+  border: 1px solid rgba(169,123,255,0.6);
+  color: var(--text); font-family: var(--serif); font-size: calc(14px * var(--fs, 1)); letter-spacing: 2px;
+  box-shadow: 0 0 26px rgba(169,123,255,0.35);
+  cursor: pointer;
+}
+#boostBtn.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+#boostBtn span { font-size: calc(9.5px * var(--fs, 1)); font-family: var(--sans); color: var(--gold); letter-spacing: 1px; margin-top: 3px; }
+#boostBtn:active { transform: scale(0.95); }
+
+/* ---------------- 伤害飘字 ---------------- */
+#dmgLayer { position: fixed; inset: 0; z-index: 9; pointer-events: none; overflow: hidden; }
+.dmgnum {
+  position: absolute; left: 0; top: 0;
+  font-family: var(--serif); font-weight: 700; font-size: calc(19px * var(--fs, 1));
+  color: #ffffff; text-shadow: 0 0 10px rgba(140,220,255,0.9), 0 2px 5px rgba(0,0,0,0.95);
+  will-change: transform, opacity;
+}
+.dmgnum.crit {
+  font-size: calc(27px * var(--fs, 1)); color: var(--gold);
+  text-shadow: 0 0 16px rgba(255,190,80,1), 0 2px 6px rgba(0,0,0,0.95);
+}
+
+/* ---------------- 通用遮罩 ---------------- */
+.overlay {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at 50% 45%, rgba(6,20,34,0.72) 0%, rgba(2,6,12,0.93) 78%);
+  backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
+  opacity: 0; pointer-events: none; transition: opacity .3s;
+  padding: 20px;
+}
+.overlay.on { opacity: 1; pointer-events: auto; }
+
+.panel {
+  position: relative; width: min(92vw, 420px); max-height: 92vh; overflow-y: auto;
+  padding: 30px 26px 24px; border-radius: 20px;
+  background: linear-gradient(180deg, rgba(10,26,42,0.94), rgba(4,12,22,0.96));
+  border: 1px solid rgba(77,232,255,0.22);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.03) inset, 0 26px 70px rgba(0,0,0,0.7), 0 0 70px rgba(77,232,255,0.07);
+  text-align: center;
+  animation: panelIn .34s cubic-bezier(.2,1.3,.5,1);
+}
+.panel.narrow { width: min(78vw, 300px); }
+@keyframes panelIn { from { transform: translateY(18px) scale(0.97); opacity: 0; } }
+
+.seal {
+  position: absolute; right: 18px; top: 16px;
+  width: 34px; height: 34px; line-height: 34px; border-radius: 6px;
+  background: linear-gradient(180deg, #d8342a, #9c1d17);
+  color: #ffe9c9; font-family: var(--serif); font-size: calc(19px * var(--fs, 1)); font-weight: 700;
+  box-shadow: 0 0 18px rgba(216,52,42,0.5);
+}
+
+h1 {
+  font-family: var(--serif); font-size: calc(clamp(30px, 9vw, 46px) * var(--fs, 1)); font-weight: 700;
+  letter-spacing: 10px; text-indent: 10px;
+  background: linear-gradient(180deg, #ffffff 10%, #9ff0ff 55%, #4de8ff 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 22px rgba(77,232,255,0.5));
+  margin-bottom: 12px;
+}
+h2 { font-family: var(--serif); font-size: calc(26px * var(--fs, 1)); letter-spacing: 6px; margin-bottom: 8px; }
+h2.danger { color: var(--cinnabar); text-shadow: 0 0 22px rgba(255,60,70,0.6); }
+h2.goldText { color: var(--gold); text-shadow: 0 0 24px rgba(255,190,90,0.6); }
+
+.sub { font-size: calc(13px * var(--fs, 1)); line-height: 1.9; color: var(--text-dim); letter-spacing: .5px; margin-bottom: 16px; }
+.cause { font-size: calc(12.5px * var(--fs, 1)); color: var(--text-dim); letter-spacing: 2px; margin-bottom: 14px; }
+
+.best {
+  font-size: calc(12.5px * var(--fs, 1)); color: var(--gold); letter-spacing: 1px;
+  padding: 9px 12px; border-radius: 10px; margin-bottom: 16px;
+  background: rgba(255,207,107,0.07); border: 1px solid rgba(255,207,107,0.22);
+}
+.best b { font-family: var(--serif); font-size: calc(15px * var(--fs, 1)); }
+
+.howto { text-align: left; margin-bottom: 20px; }
+.ht {
+  display: flex; align-items: center; gap: 10px;
+  font-size: calc(12.5px * var(--fs, 1)); color: var(--text-dim); line-height: 2.1;
+}
+.ht i {
+  flex: 0 0 20px; width: 20px; height: 20px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-style: normal; font-size: calc(11px * var(--fs, 1)); font-family: var(--serif);
+  background: rgba(77,232,255,0.14); border: 1px solid rgba(77,232,255,0.4);
+  color: var(--jade);
+}
+
+button { font-family: var(--sans); cursor: pointer; border: none; outline: none; }
+button.primary {
+  width: 100%; padding: 15px; border-radius: 13px; margin-bottom: 10px;
+  font-size: calc(16px * var(--fs, 1)); font-weight: 700; letter-spacing: 5px; text-indent: 5px;
+  color: #04121c;
+  background: linear-gradient(180deg, #a8f2ff, #4de8ff 48%, #17a8cc);
+  box-shadow: 0 0 30px rgba(77,232,255,0.42), 0 5px 0 rgba(8,80,105,0.55);
+  transition: transform .12s, box-shadow .2s;
+}
+button.primary:active { transform: translateY(3px); box-shadow: 0 0 22px rgba(77,232,255,0.5), 0 2px 0 rgba(8,80,105,0.55); }
+button.primary.gold {
+  background: linear-gradient(180deg, #ffe6a8, #ffcf6b 48%, #e09420);
+  box-shadow: 0 0 30px rgba(255,190,90,0.45), 0 5px 0 rgba(110,70,10,0.5);
+}
+button.primary.gold span { display: block; font-size: calc(11px * var(--fs, 1)); font-weight: 400; letter-spacing: 1px; opacity: .75; margin-top: 3px; }
+
+button.ghost {
+  flex: 1; padding: 12px; border-radius: 11px;
+  background: rgba(255,255,255,0.045); border: 1px solid rgba(120,190,225,0.25);
+  color: var(--text-dim); font-size: calc(13px * var(--fs, 1)); letter-spacing: 2px;
+  transition: all .18s;
+}
+button.ghost:active { background: rgba(77,232,255,0.16); color: var(--text); }
+
+.row2 { display: flex; gap: 10px; }
+.meta { margin-top: 14px; font-size: calc(10.5px * var(--fs, 1)); color: rgba(143,179,199,0.55); letter-spacing: .5px; }
+
+.stats { text-align: left; margin: 16px 0 20px; }
+.stats .row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 9px 4px; font-size: calc(13px * var(--fs, 1)); color: var(--text-dim);
+  border-bottom: 1px solid rgba(120,190,225,0.10);
+}
+.stats .row b { font-family: var(--serif); font-size: calc(16px * var(--fs, 1)); color: var(--text); letter-spacing: 1px; }
+
+/* ---------------- 升级三选一 ---------------- */
+.levelWrap { width: 100%; max-width: 860px; text-align: center; padding: 10px; }
+.levelTitle {
+  font-family: var(--serif); font-size: calc(clamp(22px, 6vw, 34px) * var(--fs, 1)); letter-spacing: 8px;
+  color: var(--gold); text-shadow: 0 0 30px rgba(255,190,90,0.55); margin-bottom: 4px;
+}
+.levelSub { font-size: calc(12px * var(--fs, 1)); color: var(--text-dim); letter-spacing: 3px; margin-bottom: 22px; }
+
+#cards { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.card {
+  position: relative; flex: 1 1 190px; max-width: 250px; min-width: 150px;
+  padding: 18px 16px 14px; border-radius: 16px; text-align: left; cursor: pointer;
+  background: linear-gradient(180deg, rgba(12,30,46,0.95), rgba(4,12,22,0.97));
+  border: 1px solid color-mix(in srgb, var(--c) 38%, transparent);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.02) inset, 0 16px 44px rgba(0,0,0,0.6);
+  transition: transform .16s cubic-bezier(.2,1.4,.5,1), box-shadow .2s, border-color .2s;
+  overflow: hidden;
+  animation: cardIn .32s backwards;
+}
+.card::before {
+  content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--c), transparent);
+  opacity: .85;
+}
+.card::after {
+  content: ''; position: absolute; left: 50%; top: -50%; width: 150%; height: 100%;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--c) 22%, transparent), transparent 70%);
+  pointer-events: none;
+}
+.card:nth-child(1) { animation-delay: .02s; }
+.card:nth-child(2) { animation-delay: .09s; }
+.card:nth-child(3) { animation-delay: .16s; }
+@keyframes cardIn { from { transform: translateY(22px) scale(.95); opacity: 0; } }
+.card:hover { transform: translateY(-5px); box-shadow: 0 0 0 1px var(--c) inset, 0 22px 50px rgba(0,0,0,0.7), 0 0 40px color-mix(in srgb, var(--c) 25%, transparent); }
+.card:active { transform: scale(.97); }
+
+.cardTop { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; position: relative; z-index: 1; }
+.cIcon {
+  flex: 0 0 44px; width: 44px; height: 44px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif); font-size: calc(22px * var(--fs, 1)); font-weight: 700;
+  color: var(--c);
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--c) 28%, transparent);
+}
+.cMeta { min-width: 0; }
+.cName { font-family: var(--serif); font-size: calc(19px * var(--fs, 1)); letter-spacing: 2px; color: var(--text); }
+.cTag { font-size: calc(10.5px * var(--fs, 1)); letter-spacing: 1px; margin-top: 3px; }
+/* 「这张牌在推进我的进化目标」—— 只在目标相关的那 1~2 张牌上出现 */
+.goalTag {
+  position: relative; z-index: 1;
+  display: inline-block; margin: -2px 0 8px;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: calc(10px * var(--fs, 1)); letter-spacing: 1px;
+  color: #ffe9a8;
+  background: rgba(255,196,64,0.13);
+  border: 1px solid rgba(255,215,106,0.42);
+}
+.cDesc { position: relative; z-index: 1; font-size: calc(12.5px * var(--fs, 1)); line-height: 1.75; color: var(--text-dim); min-height: 44px; }
+
+/* ---------- 功法进化卡 ----------
+ * 进化是整局唯一的「里程碑」事件，必须在三张牌里一眼跳出来。
+ * 手法：金色描边 + 更强的外发光 + 缓慢的呼吸动画 + 右上角缎带。
+ * 呼吸动画用 transform/opacity 之外的 filter，成本很低，
+ * 而且只在升级面板打开时存在（面板一关就没了）。
+ */
+.card.evo {
+  background: linear-gradient(180deg, rgba(46,34,8,0.96), rgba(14,10,2,0.98));
+  border-color: color-mix(in srgb, #ffd76a 62%, transparent);
+  box-shadow: 0 0 0 1px rgba(255,215,106,0.16) inset,
+              0 16px 44px rgba(0,0,0,0.6),
+              0 0 34px rgba(255,196,64,0.22);
+  animation: cardIn .32s backwards, evoBreath 2.6s ease-in-out .4s infinite;
+}
+.card.evo::before { height: 4px; background: linear-gradient(90deg, transparent, #ffd76a, transparent); opacity: 1; }
+.card.evo::after {
+  background: radial-gradient(ellipse at 50% 0%, rgba(255,215,106,0.30), transparent 72%);
+}
+.card.evo .cName { color: #ffe9a8; text-shadow: 0 0 18px rgba(255,196,64,0.55); }
+.card.evo .cIcon {
+  color: #ffe9a8;
+  background: rgba(255,196,64,0.16);
+  border-color: rgba(255,215,106,0.62);
+  box-shadow: 0 0 28px rgba(255,196,64,0.42);
+}
+.card.evo:hover {
+  box-shadow: 0 0 0 1px #ffd76a inset,
+              0 22px 50px rgba(0,0,0,0.7),
+              0 0 52px rgba(255,196,64,0.42);
+}
+@keyframes evoBreath {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(255,215,106,0.16) inset, 0 16px 44px rgba(0,0,0,0.6), 0 0 30px rgba(255,196,64,0.18); }
+  50%      { box-shadow: 0 0 0 1px rgba(255,215,106,0.30) inset, 0 16px 44px rgba(0,0,0,0.6), 0 0 48px rgba(255,196,64,0.36); }
+}
+.evoRibbon {
+  position: absolute; top: 0; right: 0; z-index: 2;
+  padding: 4px 11px; border-bottom-left-radius: 12px;
+  font-size: calc(10px * var(--fs, 1)); letter-spacing: 3px; font-weight: 700;
+  color: #2a1c00; background: linear-gradient(180deg, #ffe9a8, #ffc33d);
+  box-shadow: 0 3px 14px rgba(255,196,64,0.5);
+}
+
+/* 已进化的功法：技能栏金边 + 星标 */
+.skill.ascended {
+  border-color: #ffd76a !important;
+  color: #ffe9a8 !important;
+  box-shadow: 0 0 14px rgba(255,196,64,0.42);
+}
+.skill.ascended::after {
+  content: '★'; position: absolute; top: -4px; right: -4px;
+  font-size: calc(10px * var(--fs, 1)); color: #ffd76a; text-shadow: 0 0 8px rgba(255,196,64,0.9);
+}
+.cFoot {
+  position: relative; z-index: 1;
+  display: flex; justify-content: space-between; margin-top: 12px;
+  font-size: calc(10px * var(--fs, 1)); color: rgba(143,179,199,0.6); letter-spacing: .5px;
+  padding-top: 10px; border-top: 1px solid rgba(120,190,225,0.10);
+}
+
+/* ---------------- 广告演示 ---------------- */
+#adOverlay { z-index: 80; background: rgba(1,4,8,0.94); }
+.adBox {
+  width: min(88vw, 340px); padding: 30px 24px; border-radius: 18px; text-align: center;
+  background: linear-gradient(180deg, rgba(14,32,50,0.96), rgba(4,12,22,0.98));
+  border: 1px solid rgba(255,207,107,0.3);
+  box-shadow: 0 0 60px rgba(255,190,90,0.14);
+}
+.adTag {
+  display: inline-block; font-size: calc(10px * var(--fs, 1)); letter-spacing: 2px; padding: 4px 10px;
+  border-radius: 20px; color: var(--gold);
+  background: rgba(255,207,107,0.12); border: 1px solid rgba(255,207,107,0.3);
+  margin-bottom: 16px;
+}
+.adName { font-family: var(--serif); font-size: calc(20px * var(--fs, 1)); letter-spacing: 3px; margin-bottom: 18px; }
+.adCount { font-family: var(--serif); font-size: calc(46px * var(--fs, 1)); color: var(--gold); line-height: 1; margin-bottom: 14px; }
+.adCount i { font-size: calc(16px * var(--fs, 1)); font-style: normal; margin-left: 4px; opacity: .7; }
+.adTip { font-size: calc(10.5px * var(--fs, 1)); color: rgba(143,179,199,0.7); line-height: 1.7; margin-bottom: 18px; }
+#adSkip { margin-bottom: 0; }
+#adSkip.ready { animation: adReady .8s infinite; }
+@keyframes adReady { 0%,100% { box-shadow: 0 0 30px rgba(255,190,90,0.42), 0 5px 0 rgba(110,70,10,0.5); } 50% { box-shadow: 0 0 46px rgba(255,190,90,0.85), 0 5px 0 rgba(110,70,10,0.5); } }
+
+/* ---------------- 加载 ---------------- */
+#loading {
+  position: fixed; inset: 0; z-index: 90;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  background: var(--ink); color: var(--text-dim); font-size: calc(12.5px * var(--fs, 1)); letter-spacing: 3px;
+}
+.spin {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 2px solid rgba(77,232,255,0.18); border-top-color: var(--jade);
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------------- 启动失败面板 ----------------
+ * 为什么要有这一屏：WebGL 建不出来时，原来的界面是把 `err.stack` 直接贴出来
+ * ——用户看到 "Error creating WebGL context. at new ws (three.min.js:6:337663)"，
+ * 既不知道出了什么事，也不知道自己能做什么。
+ *
+ * 这一屏的设计约束是「先给结论、再给办法、最后才给技术细节」：
+ * 绝大多数 WebGL 失败是环境问题（加速被关 / 上下文用满），用户自己能修，
+ * 所以「怎么办」必须排在「是什么」前面，而且每一步都要能照着做。
+ * 技术细节收进 <details>：不干扰普通用户，但要报 bug 的人复制得到。
+ */
+#loading.failed {
+  align-items: center; justify-content: flex-start;
+  overflow-y: auto; padding: 6vh 20px 40px;
+  letter-spacing: 0;
+}
+.bootfail {
+  max-width: 560px; width: 100%; text-align: left;
+  color: var(--text);
+}
+.bootfail h2 {
+  margin: 0 0 10px; font-family: var(--serif); font-weight: 600;
+  font-size: calc(21px * var(--fs, 1)); color: var(--gold);
+  letter-spacing: 1px;
+}
+.bootfail .lead {
+  margin: 0 0 20px; color: var(--text-dim);
+  font-size: calc(13.5px * var(--fs, 1)); line-height: 1.75;
+}
+.bootfail .lead strong { color: var(--jade-soft); font-weight: 600; }
+.bootfail .steps {
+  border: 1px solid rgba(77,232,255,0.16); border-radius: 10px;
+  background: rgba(8,20,32,0.72); padding: 14px 18px 6px;
+}
+.bootfail .steps > b {
+  display: block; margin-bottom: 8px; color: var(--jade);
+  font-size: calc(13px * var(--fs, 1)); font-weight: 600;
+}
+.bootfail .steps ol { margin: 0; padding-left: 20px; }
+.bootfail .steps li {
+  margin-bottom: 12px; color: var(--text);
+  font-size: calc(13px * var(--fs, 1)); line-height: 1.6;
+}
+/* 每条办法下面挂一行「为什么 / 具体在哪」，字号小一档、颜色暗一档 */
+.bootfail .steps li span {
+  display: block; margin-top: 3px; color: var(--text-dim);
+  font-size: calc(12px * var(--fs, 1)); line-height: 1.6;
+}
+.bootfail .probe {
+  margin-top: 20px; border: 1px solid rgba(77,232,255,0.14); border-radius: 10px;
+  background: rgba(8,20,32,0.6); padding: 12px 18px;
+}
+.bootfail .probe > b {
+  display: block; margin-bottom: 8px; color: var(--text-dim);
+  font-size: calc(12px * var(--fs, 1)); letter-spacing: 1px;
+}
+.bootfail .probe table { border-collapse: collapse; width: 100%; }
+.bootfail .probe td {
+  padding: 4px 0; font-size: calc(12.5px * var(--fs, 1));
+  color: var(--text); border-bottom: 1px solid rgba(77,232,255,0.07);
+  word-break: break-all;
+}
+.bootfail .probe td:first-child { color: var(--text-dim); width: 92px; }
+.bootfail .probe tr:last-child td { border-bottom: none; }
+.bootfail .hint {
+  margin: 18px 0 0; color: var(--text-dim);
+  font-size: calc(12px * var(--fs, 1)); line-height: 1.7;
+}
+.bootfail .hint b { color: var(--text); }
+.bootfail .tech { margin-top: 22px; }
+/* 「复制诊断信息」。定位是**次要动作**：普通玩家不需要它，
+   但被卡住的人需要——所以做成描边按钮而不是主按钮，别抢「怎么办」的注意力。 */
+.bootfail .copyBtn {
+  display: block; margin: 20px 0 0; padding: 10px 18px;
+  border: 1px solid rgba(77,232,255,0.35); border-radius: 8px;
+  background: rgba(8,20,32,0.8); color: var(--jade);
+  font-family: var(--sans); font-size: calc(12.5px * var(--fs, 1));
+  letter-spacing: 1px; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bootfail .copyBtn:hover {
+  background: rgba(77,232,255,0.1); border-color: var(--jade);
+}
+.bootfail .tech summary {
+  cursor: pointer; color: var(--text-dim);
+  font-size: calc(12px * var(--fs, 1)); letter-spacing: 1px;
+}
+.bootfail .tech summary:hover { color: var(--jade); }
+.bootfail .tech pre {
+  margin: 10px 0 0; padding: 12px; max-height: 34vh; overflow: auto;
+  border: 1px solid rgba(255,90,77,0.2); border-radius: 8px;
+  background: rgba(3,8,15,0.9); color: #ffb3ac;
+  font-size: calc(11.5px * var(--fs, 1)); line-height: 1.55;
+  white-space: pre-wrap; word-break: break-all;
+}
+
+/* ---------------- 窄屏 ---------------- */
+@media (max-width: 560px) {
+  #cards { flex-direction: column; align-items: stretch; gap: 10px; }
+  .card { max-width: none; flex: 0 0 auto; padding: 14px; }
+  .cardTop { margin-bottom: 8px; }
+  .cIcon { flex-basis: 38px; width: 38px; height: 38px; font-size: calc(19px * var(--fs, 1)); }
+  .cName { font-size: calc(17px * var(--fs, 1)); }
+  .cDesc { min-height: 0; font-size: calc(12px * var(--fs, 1)); }
+  .levelWrap { max-height: 88vh; overflow-y: auto; }
+  #skillBar { max-width: 56vw; }
+  .skill { width: 38px; height: 38px; }
+}
+@media (max-height: 480px) {
+  .panel { padding: 20px 20px 16px; }
+  .howto { display: none; }
+  h1 { font-size: calc(30px * var(--fs, 1)); margin-bottom: 8px; }
+}
+
+/* ============================================================
+ * 暂停 / 设置面板
+ * ============================================================ */
+#pauseOverlay .panel > button { display: block; width: 100%; }
+
+.panel.settings { width: min(92vw, 400px); text-align: left; }
+.panel.settings h2 { text-align: center; margin-bottom: 14px; }
+
+/* 分组间距从 18 收到 14。
+   原因：设置面板新增了「无障碍」一组，整体高度超出了 92vh ——
+   面板是可滚动的，所以不会报错，但**底部的「完成」按钮被推到折线以下**，
+   而「打开设置要先滚动才能按完成」在手机上是很差的体验。
+   与其加高面板（会顶到安全区），不如把行距收回来：
+   这三组之间的空白本来就是装饰性的，收紧不损失任何信息。 */
+.sgroup {
+  margin-bottom: 14px; padding: 13px 14px 4px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.028);
+  border: 1px solid rgba(120,190,225,0.14);
+}
+.sglabel {
+  font-family: var(--serif); font-size: calc(12px * var(--fs, 1)); letter-spacing: 4px;
+  color: var(--jade); opacity: .85; margin-bottom: 10px;
+}
+
+.srow {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px; min-height: 30px;
+}
+.srow > span {
+  flex: 0 0 68px; font-size: calc(13px * var(--fs, 1)); color: var(--text-dim); letter-spacing: 1px;
+}
+.srow > b {
+  flex: 0 0 34px; text-align: right;
+  font-size: calc(12px * var(--fs, 1)); font-weight: 600; color: var(--jade);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 音量滑杆：轨道与滑块都手写，避免各端原生样式差异过大 */
+.srow input[type=range] {
+  flex: 1; -webkit-appearance: none; appearance: none;
+  height: 26px; background: transparent; outline: none;
+}
+.srow input[type=range]::-webkit-slider-runnable-track {
+  height: 5px; border-radius: 3px;
+  background: linear-gradient(90deg, rgba(77,232,255,0.55), rgba(77,232,255,0.18));
+  border: 1px solid rgba(77,232,255,0.25);
+}
+.srow input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 17px; height: 17px; margin-top: -7px; border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #ffffff, #9ff0ff 55%, #2fb4d8);
+  box-shadow: 0 0 12px rgba(77,232,255,0.8);
+  cursor: pointer;
+}
+.srow input[type=range]::-moz-range-track {
+  height: 5px; border-radius: 3px; background: rgba(77,232,255,0.3);
+}
+.srow input[type=range]::-moz-range-thumb {
+  width: 15px; height: 15px; border: none; border-radius: 50%;
+  background: #9ff0ff; box-shadow: 0 0 12px rgba(77,232,255,0.8);
+}
+
+/* 分段选择器 */
+.seg {
+  flex: 1; display: flex; gap: 5px;
+}
+.seg button {
+  flex: 1; padding: 8px 4px; border-radius: 9px;
+  font-size: calc(12px * var(--fs, 1)); letter-spacing: 1px;
+  color: var(--text-dim);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(120,190,225,0.20);
+  transition: all .16s;
+}
+.seg button.on {
+  color: #04121c; font-weight: 700;
+  background: linear-gradient(180deg, #a8f2ff, #4de8ff 60%, #1fa8cc);
+  border-color: rgba(77,232,255,0.7);
+  box-shadow: 0 0 16px rgba(77,232,255,0.45);
+}
+
+.panel.settings .hint {
+  font-size: calc(11.5px * var(--fs, 1)); line-height: 1.7; color: var(--text-dim);
+  opacity: .75; margin: 4px 0 16px; text-align: center;
+}
+
+@media (max-height: 520px) {
+  .panel.settings { padding: 16px 14px 12px; }
+  .sgroup { margin-bottom: 10px; padding: 10px 10px 2px; }
+  .srow { margin-bottom: 7px; min-height: 26px; }
+  .panel.settings h2 { font-size: calc(20px * var(--fs, 1)); margin-bottom: 10px; }
+}
+
+/* ============================================================
+ * 山门：局外成长（灵石商店 / 成就 / 图鉴）
+ *
+ * 三块内容共用一个面板。视觉上刻意和「升级三选一」区分开：
+ * 对局内是青蓝（灵青）、局外是仙金 —— 玩家一眼能分辨
+ * 「我现在是在打，还是在养成」。
+ * ============================================================ */
+
+/* ---------------- 开始界面：灵石 / 成就 / 图鉴 摘要条 ---------------- */
+.coinBar {
+  display: flex; flex-wrap: wrap; gap: 7px 14px;
+  align-items: center; justify-content: center;
+  padding: 10px 12px; margin-bottom: 15px; border-radius: 11px;
+  background: rgba(255,207,107,0.055); border: 1px solid rgba(255,207,107,0.20);
+  font-size: calc(11.5px * var(--fs, 1)); color: var(--text-dim); letter-spacing: .5px;
+}
+.coinBar .cbCoin { display: inline-flex; align-items: center; gap: 6px; }
+.coinBar .cbCoin i {
+  width: 20px; height: 20px; border-radius: 50%; font-style: normal;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif); font-size: calc(12px * var(--fs, 1)); color: #3a2400;
+  background: linear-gradient(180deg, #ffe6a8, #ffcf6b 55%, #e09420);
+  box-shadow: 0 0 12px rgba(255,190,90,0.45);
+}
+.coinBar .cbCoin b { font-family: var(--serif); font-size: calc(17px * var(--fs, 1)); color: var(--gold); letter-spacing: 1px; }
+.coinBar .cbAch b { color: var(--text); font-family: var(--serif); font-size: calc(14px * var(--fs, 1)); }
+.coinBar .cbUp { flex: 1 1 100%; font-size: calc(10.5px * var(--fs, 1)); line-height: 1.5; color: rgba(143,179,199,0.8); }
+.coinBar .cbUp.dim { color: rgba(143,179,199,0.42); }
+
+/* ---------------- 山门面板 ---------------- */
+.panel.metaPanel {
+  width: min(94vw, 620px); max-height: 90vh;
+  padding: 20px 22px 16px; text-align: left;
+  /* 面板本身不滚，滚动交给 .metaBody ——
+     两层滚动条套在一起时，触屏上极容易「滚错那一层」。 */
+  display: flex; flex-direction: column; overflow: hidden;
+}
+
+.metaHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.metaTitle {
+  font-family: var(--serif); font-size: calc(23px * var(--fs, 1)); letter-spacing: 9px; text-indent: 9px;
+  background: linear-gradient(180deg, #ffffff 10%, #ffe6a8 60%, #ffcf6b 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 16px rgba(255,190,90,0.4));
+}
+.coinChip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 13px 6px 7px; border-radius: 20px;
+  background: rgba(255,207,107,0.10); border: 1px solid rgba(255,207,107,0.38);
+  box-shadow: 0 0 18px rgba(255,190,90,0.14);
+}
+.coinChip i {
+  width: 22px; height: 22px; border-radius: 50%; font-style: normal;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif); font-size: calc(13px * var(--fs, 1)); color: #3a2400;
+  background: linear-gradient(180deg, #ffe6a8, #ffcf6b 55%, #e09420);
+}
+.coinChip b { font-family: var(--serif); font-size: calc(19px * var(--fs, 1)); color: var(--gold); letter-spacing: 1px; }
+
+.metaTabs { display: flex; gap: 8px; margin-bottom: 13px; }
+.metaTabs button {
+  flex: 1; padding: 10px 6px; border-radius: 10px;
+  font-size: calc(12.5px * var(--fs, 1)); letter-spacing: 2px; font-family: var(--sans);
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(120,190,225,0.20);
+  color: var(--text-dim); transition: all .18s;
+}
+.metaTabs button.on {
+  background: linear-gradient(180deg, rgba(255,207,107,0.20), rgba(255,207,107,0.05));
+  border-color: rgba(255,207,107,0.55); color: #ffe9a8;
+  box-shadow: 0 0 22px rgba(255,190,90,0.16) inset;
+}
+
+.metaBody { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 4px; margin-bottom: 13px; }
+.metaBody::-webkit-scrollbar { width: 5px; }
+.metaBody::-webkit-scrollbar-thumb { background: rgba(120,190,225,0.25); border-radius: 3px; }
+.metaBody::-webkit-scrollbar-track { background: transparent; }
+
+/* 滚动到底部的渐隐。
+   实测（813px 视口）：6 条轨道内容高 700px、可视区只有 507px，必然滚动。
+   滚动区刚好被「返回」按钮截断时，被裁掉的那一行看起来像**渲染错误**
+   ——像按钮盖住了它，而不是「下面还有」。
+   只在真的溢出时挂这个类（由 renderMetaTab 判定），
+   没溢出就不加：否则内容能放下时反而白白淡掉最后一行。 */
+.metaBody.hasMore {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent 100%);
+}
+
+.metaNote {
+  margin-top: 12px; font-size: calc(10.5px * var(--fs, 1)); line-height: 1.7;
+  color: rgba(143,179,199,0.55); letter-spacing: .3px;
+}
+
+/* ---------------- 灵石商店 ---------------- */
+.shopList { display: flex; flex-direction: column; gap: 9px; }
+.shopRow {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 12px; border-radius: 12px;
+  background: linear-gradient(180deg, rgba(12,30,46,0.85), rgba(6,16,28,0.9));
+  border: 1px solid rgba(120,190,225,0.16);
+}
+.shopRow .sIcon {
+  flex: 0 0 40px; width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif); font-size: calc(19px * var(--fs, 1));
+  color: var(--c, var(--jade));
+  background: color-mix(in srgb, var(--c, #4de8ff) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c, #4de8ff) 42%, transparent);
+}
+.shopRow .sMain { flex: 1 1 auto; min-width: 0; }
+.shopRow .sTop { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.shopRow .sName { font-family: var(--serif); font-size: calc(15px * var(--fs, 1)); letter-spacing: 3px; color: var(--text); }
+.shopRow .sLv { font-size: calc(10.5px * var(--fs, 1)); color: var(--text-dim); letter-spacing: 1px; white-space: nowrap; }
+.shopRow .sDesc { font-size: calc(12px * var(--fs, 1)); color: var(--jade-soft); margin-top: 3px; letter-spacing: .3px; }
+.shopRow .sDetail { font-size: calc(10.5px * var(--fs, 1)); line-height: 1.55; color: rgba(143,179,199,0.6); margin-top: 2px; }
+.lvDots { display: inline-flex; gap: 3px; margin-top: 6px; }
+.lvDots i { width: 14px; height: 4px; border-radius: 2px; background: rgba(120,190,225,0.18); }
+.lvDots i.on { background: var(--gold); box-shadow: 0 0 8px rgba(255,207,107,0.6); }
+
+.buyBtn {
+  flex: 0 0 auto; min-width: 68px; padding: 9px 10px; border-radius: 10px;
+  font-family: var(--serif); font-size: calc(14px * var(--fs, 1)); letter-spacing: 1px; color: #3a2400;
+  background: linear-gradient(180deg, #ffe6a8, #ffcf6b 50%, #e09420);
+  box-shadow: 0 0 18px rgba(255,190,90,0.30), 0 3px 0 rgba(110,70,10,0.45);
+  transition: transform .12s, box-shadow .2s;
+}
+.buyBtn::before { content: '灵 '; font-size: calc(10px * var(--fs, 1)); opacity: .72; font-family: var(--sans); }
+.buyBtn:active { transform: translateY(2px); box-shadow: 0 0 14px rgba(255,190,90,0.3), 0 1px 0 rgba(110,70,10,0.45); }
+.buyBtn.poor {
+  color: rgba(143,179,199,0.55); background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(120,190,225,0.18); box-shadow: none;
+}
+.buyBtn.maxed {
+  color: var(--gold); background: rgba(255,207,107,0.10);
+  border: 1px solid rgba(255,207,107,0.45); box-shadow: none;
+}
+.buyBtn.maxed::before { content: ''; }
+.buyBtn.shake { animation: btnShake .4s; }
+@keyframes btnShake {
+  0%,100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); } 40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); } 80% { transform: translateX(3px); }
+}
+
+/* ---------------- 成就 ---------------- */
+.achHead { font-size: calc(12px * var(--fs, 1)); color: var(--text-dim); letter-spacing: 1px; margin-bottom: 11px; }
+.achHead b { font-family: var(--serif); font-size: calc(17px * var(--fs, 1)); color: var(--gold); }
+.achHint { display: block; margin-top: 4px; font-size: calc(10.5px * var(--fs, 1)); color: rgba(143,179,199,0.45); }
+.achGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(184px, 1fr)); gap: 8px; }
+.achCard {
+  padding: 10px 11px; border-radius: 11px;
+  background: rgba(255,255,255,0.035); border: 1px solid rgba(120,190,225,0.14);
+  opacity: .5; filter: grayscale(.65);
+}
+.achCard.on {
+  opacity: 1; filter: none;
+  background: linear-gradient(180deg, rgba(255,207,107,0.10), rgba(255,207,107,0.025));
+  border-color: rgba(255,207,107,0.42);
+  box-shadow: 0 0 18px rgba(255,190,90,0.12);
+}
+.achCard.tier-silver.on { border-color: rgba(200,225,240,0.5); background: linear-gradient(180deg, rgba(200,225,240,0.10), rgba(200,225,240,0.02)); box-shadow: 0 0 18px rgba(200,225,240,0.10); }
+.achCard.tier-gold.on { border-color: rgba(255,207,107,0.58); }
+.achCard.tier-purple.on { border-color: rgba(169,123,255,0.58); background: linear-gradient(180deg, rgba(169,123,255,0.12), rgba(169,123,255,0.02)); box-shadow: 0 0 20px rgba(169,123,255,0.16); }
+/* 两行结构：上排「图标 + 名字 + 状态」，下排说明。
+   原来把状态绝对定位在右上角，长名字（无垢之身 / 万妖辟易）
+   会和它叠在一起 —— 中文成就名恰好都是四个字，很容易撞。 */
+.achCard .aTop { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.achCard .aIcon {
+  flex: 0 0 30px; width: 30px; height: 30px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif); font-size: calc(15px * var(--fs, 1));
+  background: rgba(255,255,255,0.06); color: var(--text-dim);
+}
+.achCard.on .aIcon {
+  background: linear-gradient(180deg, #ffe6a8, #ffcf6b 55%, #e09420);
+  color: #3a2400; box-shadow: 0 0 14px rgba(255,190,90,0.45);
+}
+.achCard .aName { flex: 1 1 auto; min-width: 0; font-family: var(--serif); font-size: calc(13.5px * var(--fs, 1)); letter-spacing: 1.5px; color: var(--text); }
+.achCard .aDesc { font-size: calc(10.5px * var(--fs, 1)); line-height: 1.5; color: var(--text-dim); }
+.achCard .aState {
+  flex: 0 0 auto; font-size: calc(9px * var(--fs, 1)); letter-spacing: 1px;
+  color: rgba(143,179,199,0.5); white-space: nowrap;
+}
+.achCard.on .aState { color: var(--gold); }
+
+/* ---------------- 图鉴 ---------------- */
+.cxLabel {
+  font-family: var(--serif); font-size: calc(12.5px * var(--fs, 1)); letter-spacing: 4px;
+  color: var(--text-dim); margin: 15px 0 8px;
+}
+.cxLabel:first-child { margin-top: 0; }
+.cxLabel b { color: var(--jade); font-size: calc(15px * var(--fs, 1)); }
+.cxGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 8px; }
+.cxGrid.wide { grid-template-columns: repeat(auto-fill, minmax(212px, 1fr)); }
+.cxCard {
+  padding: 10px 11px; border-radius: 11px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(120,190,225,0.12);
+  opacity: .5;
+}
+.cxCard.on {
+  opacity: 1;
+  background: linear-gradient(180deg, rgba(12,30,46,0.9), rgba(6,16,28,0.92));
+  border-color: rgba(120,190,225,0.26);
+}
+.cxTop { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.cxIcon {
+  flex: 0 0 26px; width: 26px; height: 26px; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif); font-size: calc(13px * var(--fs, 1));
+  background: rgba(77,232,255,0.10); border: 1px solid rgba(77,232,255,0.30); color: var(--jade);
+}
+.cxCard:not(.on) .cxIcon { background: rgba(255,255,255,0.05); border-color: rgba(120,190,225,0.16); color: var(--text-dim); }
+.cxName { font-family: var(--serif); font-size: calc(13px * var(--fs, 1)); letter-spacing: 2px; color: var(--text); }
+.cxStats { font-size: calc(10px * var(--fs, 1)); color: var(--jade-soft); letter-spacing: .5px; margin-bottom: 3px; }
+.cxText { font-size: calc(10.5px * var(--fs, 1)); line-height: 1.65; color: rgba(143,179,199,0.85); }
+.cxText.dim { color: rgba(143,179,199,0.42); }
+
+/* ---------------- 成就解锁浮层 ---------------- */
+#achToast {
+  position: fixed; left: 50%; top: max(14px, env(safe-area-inset-top));
+  transform: translateX(-50%); z-index: 80;
+  display: flex; flex-direction: column; gap: 8px;
+  width: min(88vw, 380px); pointer-events: none;
+}
+.achToastItem {
+  display: flex; align-items: center; gap: 11px;
+  padding: 11px 14px; border-radius: 13px;
+  background: linear-gradient(135deg, rgba(30,23,8,0.96), rgba(10,18,28,0.96));
+  border: 1px solid rgba(255,207,107,0.5);
+  box-shadow: 0 0 34px rgba(255,190,90,0.28), 0 12px 34px rgba(0,0,0,0.6);
+  animation: achIn .42s cubic-bezier(.2,1.3,.5,1);
+  transition: opacity .45s, transform .45s;
+}
+.achToastItem.out { opacity: 0; transform: translateY(-14px) scale(.96); }
+.achToastItem.tier-silver { border-color: rgba(200,225,240,0.55); box-shadow: 0 0 30px rgba(200,225,240,0.22), 0 12px 34px rgba(0,0,0,0.6); }
+.achToastItem.tier-purple { border-color: rgba(169,123,255,0.6); box-shadow: 0 0 34px rgba(169,123,255,0.28), 0 12px 34px rgba(0,0,0,0.6); }
+@keyframes achIn { from { opacity: 0; transform: translateY(-24px) scale(.94); } }
+.achToastItem .atIcon {
+  flex: 0 0 38px; width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif); font-size: calc(18px * var(--fs, 1)); color: #3a2400;
+  background: linear-gradient(180deg, #ffe6a8, #ffcf6b 55%, #e09420);
+  box-shadow: 0 0 18px rgba(255,190,90,0.5);
+}
+.achToastItem .atMain { flex: 1 1 auto; min-width: 0; }
+.achToastItem .atLabel { font-size: calc(9.5px * var(--fs, 1)); letter-spacing: 3px; color: rgba(255,207,107,0.72); }
+.achToastItem .atName { font-family: var(--serif); font-size: calc(15px * var(--fs, 1)); letter-spacing: 2px; color: var(--gold); margin: 1px 0; }
+.achToastItem .atDesc { font-size: calc(10.5px * var(--fs, 1)); color: var(--text-dim); }
+
+.stats .row b.gold { color: var(--gold); }
+
+@media (max-height: 620px) {
+  .panel.metaPanel { padding: 14px 14px 10px; }
+  .metaBody { margin-bottom: 9px; }
+  .metaTitle { font-size: calc(19px * var(--fs, 1)); }
+  .metaTabs button { padding: 8px 4px; font-size: calc(11.5px * var(--fs, 1)); }
+}
+
+/* 面板底部的返回键：主按钮的青色辉光放在金色面板里太抢，
+   收一档，并留出与滚动内容的分隔。 */
+.panel.metaPanel > button.primary {
+  flex: 0 0 auto; margin-bottom: 0;
+  box-shadow: 0 0 20px rgba(77,232,255,0.26), 0 4px 0 rgba(8,80,105,0.5);
+}
+
+/* ============================================================
+ * 无障碍：大字号模式
+ *
+ * 只改一个变量，全部 97 处字号跟着走（见 :root 里 --fs 的注释）。
+ *
+ * 系数取 1.18 而不是更大：这不是「越大越好」。面板和 HUD 里有大量
+ * 定高容器（按钮、标签行、状态条），字号涨到某个点就会开始溢出/裁切，
+ * 而裁切是**静默**的 —— 不会报错，只是有的字被切掉一半。
+ *
+ * 1.25 就是「太大了」的实证：设置面板在 1.25 下整体超出视口，
+ * 底部的说明文字和「完成」按钮被推到折线以下（面板可以滚，
+ * 但主要操作按钮需要滚动才够得着，对无障碍模式来说本身就是倒退）。
+ * 1.18 是实测既不裁切、又明显更大的一档。
+ *
+ * 另外顺带把正文的行高也放宽一点：字号放大后行距不变会显得挤，
+ * 而「挤」正是低视力玩家读不下去的主因之一。
+ * ============================================================ */
+body.bigtext {
+  --fs: 1.18;
+}
+body.bigtext .hint { line-height: 1.7; }
+
+/* 大字号下必须同时收紧行距。
+ *
+ * 只放大字号会**等比放大整块内容的高度**：设置面板本来就接近满高，
+ * 字号乘 1.18 之后底部的「完成」按钮被推出可视区。面板能滚，
+ * 所以不会报错、也不会被看成坏了 —— 但「打开设置要先滚动才能按完成」
+ * 对无障碍模式来说本身就是倒退（这个模式存在的理由就是让人少费劲）。
+ * 所以放大字号的同时把分组的间距收回来，净高度基本持平。
+ * 经验：任何「整体放大」都必须配一次「容器是否还装得下」的复核。 */
+body.bigtext .sgroup { margin-bottom: 12px; padding: 11px 12px 2px; }
+body.bigtext .srow { margin-bottom: 9px; min-height: 32px; }
+body.bigtext .panel.settings h2 { margin-bottom: 12px; }
+body.bigtext .panel { padding: 22px 20px 16px; }
+
+/* 标签列要跟着变宽。
+ *
+ * .srow > span 是 flex: 0 0 68px —— 正好够放 13px 的四个汉字。
+ * 字号乘 1.18 之后 4 个字要 61px 再加字距，68px 就装不下了，
+ * 于是「屏幕震动」被折成「屏幕震 / 动」两行。
+ * 折行本身不会报错，只会让面板看起来没做完 —— 所以必须一起改。 */
+body.bigtext .srow > span { flex: 0 0 86px; }

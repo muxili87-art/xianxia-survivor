@@ -1,0 +1,15 @@
+# 走查探针页：tools/render.sh 与 tools/render-mg.sh 会临时在根目录生成
+# `probe-*.html`，脚本收尾把它们移到 /tmp。如果脚本中途被打断（沙箱超时、
+# SIGTERM、Ctrl-C），这些文件会**留在根目录** —— 它们和 index.html 几乎
+# 一样大，混进仓库既没意义又容易被误当成正式页面。
+probe-*.html
+
+# macOS
+.DS_Store
+
+# 依赖（本项目零依赖，这里只是兜底）
+node_modules/
+
+# 临时产物
+*.log
+tmp/

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="8uuZKIfEHdKh3mPhuRHu4p">
+<head data-page-node-id="0W7y7r2wvtgbcDOGOaaGMl">
+<meta charset="utf-8" data-page-node-id="3Jg3LGRl579jzJehiHuHhy">
+<meta name="viewport" content="width=device-width,initial-scale=1" data-page-node-id="mw31FieVdolg5ExmB7FxYz">
+<title>仙台问剑 · 数据打点面板</title>
+<link rel="stylesheet" href="dashboard.css" data-page-node-id="rhuAqUcchuZHQhxQemwVcY">
+</head>
+<body data-page-node-id="ONFVHwgNCtabdCPE9UWWAp">
+
+<header class="top" data-page-node-id="2appE1By9MOLWfj3jPj59g">
+  <div class="brand" data-page-node-id="5iITEwxB03wuast314yLuv">
+    <span class="seal" data-page-node-id="TM45fuvNpr9hLh6mY0gRDU">策</span>
+    <div data-page-node-id="CzIFKMYLZV014ed485tIgO">
+      <h1 data-page-node-id="9h8R6MZpzzl4YxglMJVmEb">仙台问剑 · 数据打点面板</h1>
+      <p id="srcLine" class="src" data-page-node-id="pgxZ7o2JUtm6wfA8xc5lzy">数据源：加载中…</p>
+    </div>
+  </div>
+  <div class="actions" data-page-node-id="44JOtg5RmnFs9CsA0iSxFH">
+    <button id="btnExport" class="btn" data-page-node-id="Dm3TlofylSitZXJAGROBuC">导出 JSON</button>
+    <button id="btnImport" class="btn" data-page-node-id="3BY37GIvk5CZXfz9glOSCa">导入 JSON</button>
+    <button id="btnClear" class="btn danger" data-page-node-id="EgIlj9m2xHsPeM1ToRkQEn">清空本地数据</button>
+    <a class="btn ghost" href="index.html" data-page-node-id="Lcnv2WZWNKIrEfAp71pME1">返回游戏</a>
+  </div>
+</header>
+
+<section id="emptyState" class="empty" hidden data-page-node-id="3NSc7LPOKE9N4eY4H3BVUO">
+  <h2 data-page-node-id="4BD2oMBO7fo6CFQTVSNugA">暂无对局数据</h2>
+  <p data-page-node-id="HiJ05CpGCyqVNjbH6l6H48">本地还没有记录到对局。回到游戏玩一局即可自动打点；也可以点右上角「导入 JSON」载入一份数据。</p>
+</section>
+
+<main id="dash" hidden data-page-node-id="5LHzL0hBqBTPtQKhwoGTs5">
+
+  <section class="kpis" id="kpis" data-page-node-id="8sS6eOOA5hdea9oVY5ajlk"></section>
+
+  <section class="grid" data-page-node-id="xqbOtYzeB0bckzFiBVNYy3">
+    <div class="card wide" data-page-node-id="3Ogt8btHsXxs3HIV623UuY">
+      <div class="cardHead" data-page-node-id="EL3qfSPgBlwWEOz42QGQnX">
+        <h2 data-page-node-id="E1kT8BQJodX0cPphf6gDkl">单局时长分布</h2>
+        <span class="hint" data-page-node-id="eROSKFAl9yB2wQQ300RNJh">每 30 秒一档 · 共 <b id="durTotal" data-page-node-id="2IijkUtJw9ra9dfXBXnAxH">0</b> 局</span>
+      </div>
+      <div class="chart" id="durChart" data-page-node-id="tWA8Pn1e0TD7TzJKwKZWYA"></div>
+      <div class="axisNote" id="durNote" data-page-node-id="pcQ6m0DcIkQfHKmhNp1YPQ"></div>
+    </div>
+
+    <div class="card wide" data-page-node-id="yuSEfJChBnr6WyUZtHRdZ1">
+      <div class="cardHead" data-page-node-id="56t26b3sWphTwSPHc4EOVH">
+        <h2 data-page-node-id="qrRlhBa1UTrLIEwV4jgnRF">失败时间点分布</h2>
+        <span class="hint" data-page-node-id="iQ1zX86vHt3rvH5DU1yXhJ">红色竖线为 Boss 出场时间点（150 / 300 / 420 秒）</span>
+      </div>
+      <div class="chart" id="deathChart" data-page-node-id="gKUz0QWFdi660HcYnIEbmU"></div>
+      <div class="axisNote" data-page-node-id="6ywcYuPcOxAKnHE0lAvog7">结论直接可读：柱子集中在哪一档，说明难度墙就在那一段。</div>
+    </div>
+
+    <div class="card" data-page-node-id="ql6O8IGs2X0MwkrIQrN694">
+      <div class="cardHead" data-page-node-id="JQDLkN5LbvBnVPovEGsuFb"><h2 data-page-node-id="fEy5FjkB9HubArvmLUCPEw">境界进度漏斗</h2><span class="hint" data-page-node-id="VydvBgLOrkkyJX1InHJAbt">到达该境界的对局占比</span></div>
+      <div class="funnel" id="levelFunnel" data-page-node-id="7UVH6gneqXcuDEbmH2gvlz"></div>
+    </div>
+
+    <div class="card" data-page-node-id="YFSXCIjSPUfyoRh7yzhBlz">
+      <div class="cardHead" data-page-node-id="EzPtsdVWdiOKJFnTjJP362"><h2 data-page-node-id="EVEtpkpCYdWTkxFLly8LnQ">败因分布</h2><span class="hint" data-page-node-id="blyMWWIsHx0Dk5mFXaM6Va">最后一次受伤来源</span></div>
+      <div class="bars" id="causeBars" data-page-node-id="cosIUHBemir7OpfHqzXU9d"></div>
+    </div>
+
+    <div class="card" data-page-node-id="81pJws126wyhNzINssCqVv">
+      <div class="cardHead" data-page-node-id="uE0sum1T0pqfTB7FiglB1e"><h2 data-page-node-id="0ZGiT1FSn2YXcmYcD4ld6s">功法选择偏好</h2><span class="hint" data-page-node-id="bGMj7b6oTm45XVrUbDqd9t">被选择的累计次数</span></div>
+      <div class="bars" id="upgradeBars" data-page-node-id="rGR1sH5xMQb0ouHGxJGHnA"></div>
+    </div>
+
+    <div class="card">
+      <div class="cardHead"><h2>功法进化达成</h2><span class="hint">达成该进化的对局数</span></div>
+      <div class="bars" id="evolveBars"></div>
+      <div class="axisNote" id="evolveNote">进化是这一局的目标。如果这张图长期是空的，说明触发条件（满级 + 前置）没人能碰到，需要放宽。</div>
+    </div>
+
+    <div class="card" data-page-node-id="MCbDiZJ8k6eHysyvVqZbsc">
+      <div class="cardHead" data-page-node-id="jjKTmUPHtlb4f27qx49fQP"><h2 data-page-node-id="FkHls6h6KXFlLTFstDHxB9">广告点位表现</h2><span class="hint" data-page-node-id="evlnMqgaeBJZNPwd5gR6hX">IAA 激励视频</span></div>
+      <table class="tbl" id="adTable" data-page-node-id="oWEzh9hBIuMgxT6L0sQ4tb"></table>
+    </div>
+
+    <div class="card wide" data-page-node-id="y1cdUXVtDLmieQ9zEBReF7">
+      <div class="cardHead" data-page-node-id="D2D4W6f98L2sokSlI3UC1U"><h2 data-page-node-id="lITrr64jVsDbdNrz8Odfk9">单局明细</h2><span class="hint" data-page-node-id="VHv91fDiZ2mbu8tXNI6wJG">最近 30 局</span></div>
+      <div class="tableWrap" data-page-node-id="XFz1PrkUfn9UZEbSDNaGr6"><table class="tbl" id="runsTable" data-page-node-id="8I0xsbSdydEJbglVD2wlyU"></table></div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot" data-page-node-id="Z3DdEI6fjh36Jd8x2a1AwQ">
+  <span data-page-node-id="kFmLP0q35r8FSwUh9OiPpx">打点字段：run_start / level_up / upgrade_pick / boss_spawn / boss_kill / damage_taken / revive / ad_impression / ad_result / milestone / run_end</span>
+</footer>
+
+<!-- config.js 提供 XS.UPGRADES，dashboard.js 需要它把功法 id 翻成中文名 -->
+<script src="js/config.js"></script>
+<script src="js/platform.js"></script>
+<script src="js/telemetry.js"></script>
+<script src="data/seed-data.js"></script>
+<script src="js/dashboard.js"></script>
+</body>
+</html>

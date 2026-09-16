@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="bCHoEWzFGxCE19UW2Tuis3">
+<head data-page-node-id="X8G8KmawgnvNMfyEILhyal">
+<meta charset="utf-8" data-page-node-id="AxNZDAe7Xmo3cEprDjvpRY">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover" data-page-node-id="tGJ2FLHd1iKhKQVBs1M89A">
+<meta name="apple-mobile-web-app-capable" content="yes" data-page-node-id="SkoRDafDNQVyf7uS42ZzLW">
+<meta name="theme-color" content="#03080f" data-page-node-id="u9GH5RHd5KNNvflr3ui8XD">
+<title>仙台问剑 · 3D 修仙割草</title>
+<link rel="stylesheet" href="style.css" data-page-node-id="xqmrHvSfj9CTVPfm6NbswZ">
+</head>
+<body data-page-node-id="VRlYNq6ZOVHh9N6876ncVn">
+
+<canvas id="scene" data-page-node-id="U0ZbbboNEM2RgYqyY3ugpA"></canvas>
+
+<!-- 触摸摇杆区（覆盖全屏，位于 HUD 之下） -->
+<div id="touchZone" data-page-node-id="xiBzuB0VWHWD0mz3mGBTYd"></div>
+
+<!-- 摇杆视觉 -->
+<div id="stick" data-page-node-id="lDiTEzWyaQ3mtkUAsS7jBI"><div id="stickKnob" data-page-node-id="kfJ6em45xBcimloMXpVRC4"></div></div>
+
+<!-- 伤害飘字层 -->
+<div id="dmgLayer" data-page-node-id="eNO9cx22UoZy0JZtQrRIFm"></div>
+
+<!-- ============ HUD ============ -->
+<div id="hud" data-page-node-id="dFCRoEFwhKzhR13uKg3aAA">
+
+  <div id="topLeft" data-page-node-id="XHWeLELUpZviu9bxDdtLng">
+    <div id="hpWrap" class="bar" data-page-node-id="GSTm8gHGppolQZ1Xt7nLS7">
+      <div id="hpFill" class="fill" data-page-node-id="jeg71WeRVR43Pap51OFQBl"></div>
+      <span id="hpText" class="barText" data-page-node-id="f4ycAYFKfegsk50R7lXnEP">100 / 100</span>
+      <span class="barLabel" data-page-node-id="gO9B542vYVHOg5F32Ayczm">气血</span>
+    </div>
+    <div id="xpWrap" class="bar thin" data-page-node-id="ULEYwMofcHrHoq3AoFOJz6">
+      <div id="xpFill" class="fill xp" data-page-node-id="RoB6xC68fNAISO7T4a9n1j"></div>
+      <span id="lvText" class="barText small" data-page-node-id="eBAnfvnUe7AqRijz9HAZqN">境界 1</span>
+    </div>
+  </div>
+
+  <div id="topCenter" data-page-node-id="wT2QqpHsUfPgioDOLu0EVM">
+    <div id="timer" data-page-node-id="UxmkokfVHydHQQCUZWLmHb">08:00</div>
+    <div id="waveHint" data-page-node-id="VrFiECO5vPF1leMdUEGL1l"></div>
+  </div>
+
+  <div id="topRight" data-page-node-id="XgVDPbKH6urzIf5bkzeAdd">
+    <div id="killWrap" data-page-node-id="YND92n5pO0vwPSIxdToEHX">斩妖 <b id="killCount" data-page-node-id="CVeHvfsQDMvoKxTaBQJIDd">0</b></div>
+    <button id="pauseBtn" aria-label="暂停" data-page-node-id="9Zu3fCz4GV8FpXqzhXvk8n">‖</button>
+  </div>
+
+  <div id="bossBar" data-page-node-id="tszELHBA5JmgQLCrgEuFxB">
+    <div id="bossName" data-page-node-id="80M388OqwPPF3xEkBcAnEa">魔尊</div>
+    <div class="bossTrack" data-page-node-id="3Elx5WMnFsrDOVDVN1phGy"><div id="bossFill" data-page-node-id="opdSNq1J07KitZU4Vyzq6V"></div></div>
+  </div>
+
+  <div id="announce" data-page-node-id="xXPIIKycTBJNBQ8Qbcyi5F"></div>
+  <div id="bossWarning" data-page-node-id="gnq9KX7gKlnLCtpPOqQIlF"></div>
+
+  <div id="skillBar" data-page-node-id="wmYYBL01nsP2nTUUfeoPQY"></div>
+
+  <!-- 教学提示：必须是 #hud 的直接子元素。
+       它用 bottom 定位，而 #topCenter 是 absolute 且贴在屏幕顶端，
+       放在里面的话 bottom:92px 会算到视口上方去（提示永远看不见）。 -->
+  <div id="tipLine" data-page-node-id="aZ5ktSlIaGUCIGPjx21OFs"></div>
+
+  <button id="boostBtn" data-page-node-id="6EjHWSIHiCscvVOtzFUcBU">神行符<span data-page-node-id="qKsFjdeXStpGJeevQWztOF">看广告</span></button>
+</div>
+
+<!-- ============ 开始界面 ============ -->
+<div id="startOverlay" class="overlay on" data-page-node-id="aXifVZKW1wDxHmFwpL7LVF">
+  <div class="panel" data-page-node-id="inaW6pQ8GekMdxPC7fq1fi">
+    <div class="seal" data-page-node-id="pqGU0wNYFcmO9DLXravAtw">仙</div>
+    <h1 data-page-node-id="gzyTxBEi0M5AFbIvHIjssj">仙台问剑</h1>
+    <p class="sub" data-page-node-id="czgFC0yfDbg8kbsvaDpEV6">云海之上，剑修独守仙台。<br data-page-node-id="7OHDQ78nyEDKlGLqEgb4AL">妖魔自八方涌来，撑过八分钟即为渡劫。</p>
+    <div id="bestText" class="best" data-page-node-id="MVPLm6BgUOpDAI5HwAWtwm"></div>
+    <div id="startCoins" class="coinBar" data-page-node-id="sCoinBar01"></div>
+    <div class="howto" data-page-node-id="zAUdyfLTGXAUCWixhtSNHB">
+      <div class="ht" data-page-node-id="zC0jH6Oyhd8omF8Z67Iz0b"><i data-page-node-id="d1mRpjf6zx7bpjfqxwK53x">1</i>拖动屏幕任意处走位</div>
+      <div class="ht" data-page-node-id="lNsFN2VjqUEAx50Ns4K8h0"><i data-page-node-id="JueghufCiKAFgQSrdzJtUo">2</i>飞剑与功法自动攻击，无需操作</div>
+      <div class="ht" data-page-node-id="P8tUitgx96KqHN7GlDxoGf"><i data-page-node-id="vTAAf0x5cnreugpifVV1qf">3</i>拾取灵气升级，三选一功法构筑流派</div>
+    </div>
+    <button id="startBtn" class="primary" data-page-node-id="rrBrfvE7gLeeU2o1JsOmPO">入 局</button>
+    <div class="row2" data-page-node-id="row2StartBtns">
+      <button id="metaBtn" class="ghost" data-page-node-id="MB3yw1Y2C6cuPaEMkZJmeT">山 门 · 商店 / 图鉴</button>
+      <button id="dataBtn" class="ghost" data-page-node-id="MB3yw1Y2C6cuPaEMkZJyQX">数据面板</button>
+    </div>
+    <div id="startMeta" class="meta" data-page-node-id="PqxZq52Qm9pWFCIU5swqak"></div>
+  </div>
+</div>
+
+<!-- ============ 升级三选一 ============ -->
+<div id="levelOverlay" class="overlay" data-page-node-id="UjJgqIhcFfecD99sQvnBGn">
+  <div class="levelWrap" data-page-node-id="LHAyal1DQm439NKFpgtYXD">
+    <div id="levelTitle" class="levelTitle" data-page-node-id="cd0xZtis4uxbiYAvD5QYdN">境界突破</div>
+    <div id="levelSub" class="levelSub" data-page-node-id="aPneeFFZXMDE1LJwutdGz5">择一功法</div>
+    <div id="cards" data-page-node-id="lkASsS3u3tTOGYooOlIqXp"></div>
+  </div>
+</div>
+
+<!-- ============ 失败结算 ============ -->
+<div id="overOverlay" class="overlay" data-page-node-id="zGlVfHZAoZ0P30HAUE7gWU">
+  <div class="panel" data-page-node-id="uZ5bWlJET9SR3FVsgGAy6i">
+    <h2 id="overTitle" class="danger" data-page-node-id="VMUjGfMYyCVBqqcjUubiOB">道消身陨</h2>
+    <div id="overCause" class="cause" data-page-node-id="798PaE1aSwbwjHiZeDuF8m"></div>
+    <div id="overStats" class="stats" data-page-node-id="h2XkonGdcpGITKyeDZUKNU"></div>
+    <button id="reviveBtn" class="primary gold" data-page-node-id="OsmANj9VTsTj3hhMBRxKpl">看广告复活<span id="reviveCount" data-page-node-id="qoAoUWbbJIjpYfvKSOFlMu"></span></button>
+    <div class="row2" data-page-node-id="SStu2phjOne5139c5x9CSf">
+      <button id="overRestart" class="ghost" data-page-node-id="6FXQNZ6tfFNCCqX8NTzMMJ">再来一局</button>
+      <button id="overHome" class="ghost" data-page-node-id="pfTAERoS5Sl3xae9HmfFSa">返回山门</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 胜利结算 ============ -->
+<div id="winOverlay" class="overlay" data-page-node-id="kyfSlvcFs7lticCKqwSrH4">
+  <div class="panel" data-page-node-id="bMFUvXsSJHsRMc2KDFpkH4">
+    <h2 class="goldText" data-page-node-id="2ogewk6ZyIm6xBmmEgxQXG">渡劫成功</h2>
+    <div class="cause" data-page-node-id="aa4k0xpQDKy4b1u6IrLUSd">八分钟已满，仙台无恙</div>
+    <div id="winStats" class="stats" data-page-node-id="wx5PHDttzcP0fYu97hTP7L"></div>
+    <button id="winDouble" class="primary gold" data-page-node-id="mbHgkYSiBenD6bWerUaqV7">看广告 · 灵石翻倍</button>
+    <div class="row2" data-page-node-id="oDSaPRpzUcAOoy2obe8kSq">
+      <button id="winRestart" class="ghost" data-page-node-id="UiYL13HvBwjcWaqFbEd9zi">再来一局</button>
+      <button id="winHome" class="ghost" data-page-node-id="HxExBjSCG9O0aXGBmaD2BJ">返回山门</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 暂停 ============ -->
+<div id="pauseOverlay" class="overlay" data-page-node-id="yLVH8Y0QQ7TRr93kKc3YAo">
+  <div class="panel narrow" data-page-node-id="fUa1MaxjLvL9SpUrlLEMyx">
+    <h2 data-page-node-id="jaZ4Clj8Ba9bB4hoD7d0yc">暂 停</h2>
+    <button id="pauseResume" class="primary" data-page-node-id="5o0D3QcLtstgvWxe7Zb8pE">继续</button>
+    <button id="pauseSettings" class="ghost" data-page-node-id="8imyA5BsLrZj6aeATiKrGh">设 置</button>
+    <button id="pauseQuit" class="ghost" data-page-node-id="h93I6HtXZexmVHVaiO8jR6">结束本局</button>
+  </div>
+</div>
+
+<!-- ============ 设置 ============ -->
+<div id="settingsOverlay" class="overlay" data-page-node-id="hmW6bjiIyDq7HicwUUFeOW">
+  <div class="panel settings" data-page-node-id="G9LNalH1NNuiiGBCFFnPHU">
+    <h2 data-page-node-id="mNaF1pLq4aC966lTrvjx6z">设 置</h2>
+
+    <div class="sgroup" data-page-node-id="ivaLQzWthp1qrDdWWi4noM">
+      <div class="sglabel" data-page-node-id="p8zSdYBKjD1lW3M1YJiabV">音 频</div>
+      <div class="srow" data-page-node-id="E4YTuwPepe2BnPyHSeTdGw">
+        <span data-page-node-id="RiC273ADU5fXKVsG5wp8A8">主音量</span>
+        <input type="range" id="volMaster" min="0" max="100" step="1" data-page-node-id="0eVk9Upi6jggSSd7azATLF">
+        <b id="volMasterV" data-page-node-id="FAh6yyAJEwSFK8NTsh1t5u">85</b>
+      </div>
+      <div class="srow" data-page-node-id="HzmSYzKqMoSMChG4nQfg3u">
+        <span data-page-node-id="VKptCWuLQmTlsBYFx5p26q">音效</span>
+        <input type="range" id="volSfx" min="0" max="100" step="1" data-page-node-id="ujyfxYaHZ7jP0bYKkkEfWa">
+        <b id="volSfxV" data-page-node-id="DfzDzHB9qsdEgXi0VWEaAo">78</b>
+      </div>
+      <div class="srow" data-page-node-id="Nr13xivzIP0tF1n2fOUsTv">
+        <span data-page-node-id="bslho94CxWUor2ZOmYT5zo">配乐</span>
+        <input type="range" id="volMusic" min="0" max="100" step="1" data-page-node-id="qveHFc7gV8WkmJI8PJx6fG">
+        <b id="volMusicV" data-page-node-id="n3biOzPckiE6FYm94X53nC">40</b>
+      </div>
+    </div>
+
+    <div class="sgroup" data-page-node-id="GWuDJMhI1E6RBqV0vJPLnd">
+      <div class="sglabel" data-page-node-id="w1QVPiuyVryxjDj8eCZAWk">画 面</div>
+      <div class="srow" data-page-node-id="x1JILB46GABJ4reYDVuH4n">
+        <span data-page-node-id="4BAMTwFg1KYDPbKss90W8b">画质</span>
+        <div class="seg" id="qualitySeg" data-page-node-id="13DcAbtrvD6PV4OqjOCLlV">
+          <button data-q="auto" data-page-node-id="ArLm6MgKBZFQDMgYTUrj6c">自动</button><button data-q="high" data-page-node-id="OFJ9UJgULIxBcxfQyJMAgW">高</button><button data-q="mid" data-page-node-id="puiRBfaclRCCfWejfcFXjN">中</button><button data-q="low" data-page-node-id="wJ0AeI2Cq4JoUBQpUhIxF0">低</button>
+        </div>
+      </div>
+      <div class="srow" data-page-node-id="3uLcBFaylCELzdG7g9jmdv">
+        <span data-page-node-id="cxfGiE3vR8TvjQBvC3iU7z">屏幕震动</span>
+        <div class="seg" id="shakeSeg" data-page-node-id="kNsykYbn5n4Z3CjTD5aNW8">
+          <button data-s="1" data-page-node-id="4LB6iC0XaUlW2zRqALcoc7">标准</button><button data-s="0.45" data-page-node-id="xuDTERiGSgSRMzkF4GsEMi">轻微</button><button data-s="0" data-page-node-id="P1nDs9zFlTUYECXxdeVnCo">关闭</button>
+        </div>
+      </div>
+      <div class="srow" data-page-node-id="AkqnPgXD2pLtlbVIPj4Fvv">
+        <span data-page-node-id="oBSRPzcXLFcHJruPSnZQ39">伤害数字</span>
+        <div class="seg" id="dmgSeg" data-page-node-id="4TxE8R3BypwTSxW3ZDcqU4">
+          <button data-d="1" data-page-node-id="QiYojWmR2DePWgmhS0z6CU">显示</button><button data-d="0" data-page-node-id="Juch0qqpkxmcLUPZDj1gQJ">隐藏</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sgroup" data-page-node-id="a11yGroup01">
+      <div class="sglabel" data-page-node-id="a11yLabel01">无障碍</div>
+      <div class="srow" data-page-node-id="a11yRowCb">
+        <span data-page-node-id="a11ySpanCb">色盲辅助</span>
+        <div class="seg" id="cbSeg" data-page-node-id="a11ySegCb">
+          <button data-c="1" data-page-node-id="a11yCbOn">开启</button><button data-c="0" data-page-node-id="a11yCbOff">关闭</button>
+        </div>
+      </div>
+      <div class="srow" data-page-node-id="a11yRowBig">
+        <span data-page-node-id="a11ySpanBig">大字号</span>
+        <div class="seg" id="bigSeg" data-page-node-id="a11ySegBig">
+          <button data-b="1" data-page-node-id="a11yBigOn">开启</button><button data-b="0" data-page-node-id="a11yBigOff">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="hint" data-page-node-id="HXH43EBnRYbWWllZVVDxz">低画质降低分辨率与粒子数以保帧率；色盲辅助为妖魔加描边、并用形状区分冰火与妖将魔尊。</div>
+    <button id="settingsClose" class="primary" data-page-node-id="7zkYqemAmQ2nzpJpLzlJA0">完 成</button>
+  </div>
+</div>
+
+<!-- ============ 激励视频（Web 演示） ============ -->
+<div id="adOverlay" class="overlay" data-page-node-id="yemYIAmrEzitAUlfHMkOIx">
+  <div class="adBox" data-page-node-id="MIexzLDPAOMOOlUt90LJdp">
+    <div class="adTag" data-page-node-id="W4znMCT02TUZb1B3Mbap5r">激励视频 · 演示</div>
+    <div id="adName" class="adName" data-page-node-id="0iA19W6CA2FfDfPU0td2ZO">广告位</div>
+    <div class="adCount" data-page-node-id="8IuDcTv1UNcKPDHGqkgRj6"><span id="adSec" data-page-node-id="02LAJ1GvVeIN5O7HesIXK1">5.0</span><i data-page-node-id="GkwUHGEyuh4YMrRrBkhAZ7">s</i></div>
+    <div id="adTip" class="adTip" data-page-node-id="NslhnDOJ9e8zYliwAntX0B"></div>
+    <button id="adSkip" class="primary" data-page-node-id="b0kiQ8VgJpeciZvYCng9kx">广告播放中…</button>
+  </div>
+</div>
+
+<div id="loading" data-page-node-id="peSm1K8XwCRBtznCFPlmys"><div class="spin" data-page-node-id="FCmbJF0KN8yAnTwukXWhOv"></div><span data-page-node-id="4nELpecoUk6mNKawhNTGHD">正在凝聚仙台…</span></div>
+
+<!-- ============ 山门：局外成长（灵石商店 / 成就 / 图鉴） ============ -->
+<div id="metaOverlay" class="overlay" data-page-node-id="metaOv01">
+  <div class="panel metaPanel" data-page-node-id="metaPanel01">
+    <div class="metaHead" data-page-node-id="metaHead01">
+      <div class="metaTitle" data-page-node-id="metaTitle01">山 门</div>
+      <div class="coinChip" data-page-node-id="coinChip01"><i data-page-node-id="coinIcon01">灵</i><b id="metaCoins" data-page-node-id="metaCoins01">0</b></div>
+    </div>
+    <div class="metaTabs" id="metaTabs" data-page-node-id="metaTabs01">
+      <button data-tab="shop" class="on" data-page-node-id="metaTabShop">灵石商店</button>
+      <button data-tab="ach" data-page-node-id="metaTabAch">成 就</button>
+      <button data-tab="codex" data-page-node-id="metaTabCodex">图 鉴</button>
+    </div>
+    <div id="metaBody" class="metaBody" data-page-node-id="metaBody01"></div>
+    <button id="metaClose" class="primary" data-page-node-id="metaClose01">返 回</button>
+  </div>
+</div>
+
+<!-- 成就解锁浮层：独立于所有遮罩。
+     它可能在「结算界面」也可能在「下一局开场」触发，
+     绑进任何一个遮罩都会漏掉另一半场景。 -->
+<div id="achToast" data-page-node-id="achToast01"></div>
+
+<!-- ============ 依赖（全部本地，零外链） ============ -->
+<script src="vendor/three.min.js"></script>
+<script src="vendor/shaders/CopyShader.js"></script>
+<script src="vendor/shaders/LuminosityHighPassShader.js"></script>
+<script src="vendor/postprocessing/Pass.js"></script>
+<script src="vendor/postprocessing/ShaderPass.js"></script>
+<script src="vendor/postprocessing/MaskPass.js"></script>
+<script src="vendor/postprocessing/EffectComposer.js"></script>
+<script src="vendor/postprocessing/RenderPass.js"></script>
+<script src="vendor/postprocessing/UnrealBloomPass.js"></script>
+
+<!-- ============ 游戏代码 ============ -->
+<script src="js/config.js"></script>
+<script src="js/core.js"></script>
+<script src="js/platform.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/meta.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/telemetry.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/world.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+<script src="js/bot.js"></script>
+<script src="js/main.js"></script>
+
+</body>
+</html>
