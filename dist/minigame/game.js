@@ -4004,7 +4004,7 @@
 })(window);
 
 
-/* ===== js/telemetry.js (381 行) ===== */
+/* ===== js/telemetry.js (400 行) ===== */
 /* ============================================================
  * 数据打点
  * 依赖：仅 XS.Platform（无 THREE 依赖，便于数据面板页单独加载）
@@ -4087,6 +4087,25 @@
   };
 
   Tele.isRunning = function () { return !!cur; };
+
+  /* 当前对局记录的只读快照。
+   *
+   * 加这个入口的直接原因：`revives` 是个「到处被读、从来没人写」的字段，
+   * 而它能藏那么久，一半是因为**没有任何地方能观测到它** ——
+   * 想验证「复活真的记上了没」，只能去读代码，或者等一局打完看数据面板。
+   * 走查跑的是**同步模拟**、不写真实存档，所以连数据面板都指望不上。
+   *
+   * 只报几个「走查要判」的字段，不是把整个 cur 摊开：
+   * 摊开会让诊断 JSON 变胖，而且每加一个字段都要重新对一遍基线。 */
+  Tele.debugCur = function () {
+    return cur ? {
+      revives: cur.revives,
+      nearDeath: cur.nearDeath,
+      kills: cur.kills,
+      bossKills: cur.bossKills,
+      level: cur.maxLevel
+    } : null;
+  };
 
   Tele.event = function (name, data) {
     if (!cur) return;
@@ -8608,7 +8627,7 @@ function buildMountains(scene) {
 })(typeof window !== 'undefined' ? window : this);
 
 
-/* ===== js/game.js (3289 行) ===== */
+/* ===== js/game.js (3296 行) ===== */
 /* ============================================================
  * 玩法核心：波次 / AI / 自动战斗 / 经验 / 功法 / 结算
  * ============================================================ */
@@ -8739,7 +8758,9 @@ function buildMountains(scene) {
   /* 残血状态的上一次取值。用来把「进入残血」判成**边沿**而不是**电平** ——
      这是个每帧都跑的判断，按电平计会把一次濒死记成几百次。
      同时它也是 Tele.nearDeath 的唯一调用点（那个字段原来
-     定义了字段、定义了累加函数，却既没人调用也没人读，见 lint-static 规则 B）。 */
+     定义了字段、定义了累加函数，却既没人调用也没人读，见 lint-static 规则 B）。
+     注意判据是**迟滞**（低于 1/3 记一次、回到 1/2 以上才重新武装），
+     不是 nearNow 的简单边沿 —— 理由见下面使用处的注释。 */
   var nearDeathOn = false;
   var lastCause = 'unknown';
   var statDmgDealt = 0;
@@ -10414,10 +10435,15 @@ function buildMountains(scene) {
        后者才是让玩家真的紧张起来的东西。 */
     var hpFrac = player ? player.hp / player.maxHp : 1;
     var nearNow = state === 'playing' && hpFrac < 0.34;
-    /* 只在**刚掉进**残血的那一刻记一次。按帧记的话这个指标
-       会变成「残血持续了多少帧」，既看不懂也和难度无关。 */
-    if (nearNow && !nearDeathOn) Tele.nearDeath();
-    nearDeathOn = nearNow;
+    /* 濒死计数用**迟滞**，不用 nearNow 的边沿。
+       为什么：升级时 state 会短暂离开 playing（变 'levelup'），
+       nearNow 于是「真 → 假 → 真」，**一次濒死被记成两次** ——
+       而残血时升级恰恰很常见，这个偏差不是小概率。
+       迟滞只看血量、与 state 无关，天然免疫这种抖动：
+       掉到 1/3 以下记一次，回到一半以上才重新武装。
+       顺带也把「连续吃几下打但不回血」正确地算作一次。 */
+    if (nearNow && !nearDeathOn) { Tele.nearDeath(); nearDeathOn = true; }
+    if (hpFrac > 0.5) nearDeathOn = false;
     if (nearNow) {
       var sev = 1 - hpFrac / 0.34;
       var beat = Math.pow(Math.max(0, Math.sin(t * 4.6)), 5);

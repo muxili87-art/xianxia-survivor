@@ -597,6 +597,16 @@ button.ghost:active { background: rgba(77,232,255,0.16); color: var(--text); }
 
 /* ---------------- 窄屏 ---------------- */
 @media (max-width: 560px) {
+  /* 血条和计时器会撞上。
+     顶部三个盒子是「左贴边 + 居中 + 右贴边」，而 #topLeft 的宽度是
+     min(40vw, 300px)：在 390px 宽的竖屏手机上那是 156px，
+     右边缘落在 170px；而居中的 #topCenter（约 69px 宽）左边缘是 160px ——
+     **重叠约 10px**，计时器的字会压在血条右端上。
+     这个宽度阈值（560px）是量出来的：到 500px 才刚好不重叠，
+     而竖屏手机全部在 500 以下，所以整个手机竖屏都在重叠区间里。
+     （发现方式见 tools/phone-check.sh：在真 390x844 视口里量每个 HUD 盒子的矩形。
+       headless 的 --window-size 有最小宽度约 500，所以那个脚本用 iframe 造窄视口。） */
+  #topLeft { width: min(32vw, 300px); }
   #cards { flex-direction: column; align-items: stretch; gap: 10px; }
   .card { max-width: none; flex: 0 0 auto; padding: 14px; }
   .cardTop { margin-bottom: 8px; }

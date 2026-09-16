@@ -81,6 +81,25 @@
 
   Tele.isRunning = function () { return !!cur; };
 
+  /* 当前对局记录的只读快照。
+   *
+   * 加这个入口的直接原因：`revives` 是个「到处被读、从来没人写」的字段，
+   * 而它能藏那么久，一半是因为**没有任何地方能观测到它** ——
+   * 想验证「复活真的记上了没」，只能去读代码，或者等一局打完看数据面板。
+   * 走查跑的是**同步模拟**、不写真实存档，所以连数据面板都指望不上。
+   *
+   * 只报几个「走查要判」的字段，不是把整个 cur 摊开：
+   * 摊开会让诊断 JSON 变胖，而且每加一个字段都要重新对一遍基线。 */
+  Tele.debugCur = function () {
+    return cur ? {
+      revives: cur.revives,
+      nearDeath: cur.nearDeath,
+      kills: cur.kills,
+      bossKills: cur.bossKills,
+      level: cur.maxLevel
+    } : null;
+  };
+
   Tele.event = function (name, data) {
     if (!cur) return;
     if (cur.events.length > 400) return;   // 防爆
