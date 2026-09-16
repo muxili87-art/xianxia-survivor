@@ -12322,7 +12322,7 @@ function buildMountains(scene) {
 })(typeof window !== 'undefined' ? window : this);
 
 
-/* ===== js/minigame/boot.js (855 行) ===== */
+/* ===== js/minigame/boot.js (912 行) ===== */
 /* ============================================================
  * 小游戏启动入口
  *
@@ -12353,6 +12353,11 @@ function buildMountains(scene) {
   function qv(k) { return has(k) ? Q[k] : null; }
 
   var booted = false, bootError = null;
+  /* 失败面板画出来了没。null = 没走到失败路径。
+     加它是因为：不加的话，「画了一张能看的错误页」和
+     「画了一张被拉伸到只剩几个字的图」在诊断里完全一样（都是 state:'ready'），
+     只能靠人去看截图 —— 而这段代码本来就是因为「没人看过」才坏掉的。 */
+  var bootErrDrawn = null;
   var tGlobal = 0, last = 0;
   var frozen = false, frozenDrawn = 0;
   var FROZEN_FRAMES = 24;
@@ -12376,9 +12381,30 @@ function buildMountains(scene) {
    * 设备/系统太旧、同时开着太多小程序、宿主版本太老 —— 对应的办法也写在这儿。
    * ------------------------------------------------------------ */
   function drawBootError(msg) {
+    bootErrDrawn = false;
     try {
       var c = XS.MG.screenCanvas;
-      var g2 = c && c.getContext('2d');
+      if (!c) return;
+      /* 自己把画布定到屏幕尺寸 —— **不能指望它已经是对的**。
+       *
+       * 这是加 ?mgfail=1 做注入验证时才发现的：Core.init 里
+       * **先创建渲染器、再 resize**，所以渲染器一失败，画布就停在
+       * 宿主给的默认尺寸上（浏览器默认是 300x150）。
+       * 而画布会被拉伸到全屏显示 —— 于是下面这段文字被放大十几倍，
+       * 一屏只剩几个字，其余全被裁掉。
+       * 也就是说：「启动失败该给玩家看什么」这个问题，
+       * 本身又变成了一次失败。而这段代码在这之前**从来没有被渲染过**。
+       *
+       * 尺寸算法与 Core.resize 保持一致：逻辑尺寸 × min(dpr, 2)。
+       * 取 min(...,2) 是因为 3x 屏按 3 倍画会让这张一次性错误页
+       * 白占三倍显存，而它只是几行字。 */
+      var pr = Math.min(global.devicePixelRatio || 1, 2);
+      var sw = global.innerWidth || 0, sh = global.innerHeight || 0;
+      if (sw > 0 && sh > 0) {
+        var wantW = Math.round(sw * pr), wantH = Math.round(sh * pr);
+        if (c.width !== wantW || c.height !== wantH) { c.width = wantW; c.height = wantH; }
+      }
+      var g2 = c.getContext('2d');
       if (!g2) return;
       var W = c.width, H = c.height;
       g2.setTransform(1, 0, 0, 1, 0, 0);
@@ -12406,6 +12432,14 @@ function buildMountains(scene) {
         var ls = wrap(text, font, MAXW);
         for (var i = 0; i < ls.length; i++) { g2.fillText(ls[i], PAD, y); y += lh; }
         y += (gap || 0);
+      }
+      /* 截断必须留痕。裸 slice 出来的值看起来就像「值本来就是这样」——
+         比如渲染器那一行会显示成 `ANGLE (Google, Vulkan 1.3.0 (Swift`，
+         括号都不闭合，玩家/客服没法判断是被截了还是真长这样。
+         一个会误导人的诊断字段，比没有这个字段更糟。 */
+      function clip(s, n) {
+        s = String(s);
+        return s.length > n ? s.slice(0, n - 1) + '…' : s;
       }
 
       var isGL = /webgl|context/i.test(String(msg));
@@ -12450,7 +12484,7 @@ function buildMountains(scene) {
           g2.fillStyle = '#8fb3c7'; g2.font = F_SMALL;
           g2.fillText(rows[r][0], PAD, y);
           g2.fillStyle = '#eaf6ff';
-          g2.fillText(String(rows[r][1]).slice(0, 34), PAD + Math.round(W * 0.24), y);
+          g2.fillText(clip(rows[r][1], 34), PAD + Math.round(W * 0.24), y);
           y += Math.round(W * 0.044);
         }
       } else {
@@ -12468,9 +12502,10 @@ function buildMountains(scene) {
       var lines = String(msg).split('\n');
       var room = Math.floor((H - y - PAD) / Math.round(W * 0.036));
       for (var i = 0; i < Math.min(lines.length, Math.max(0, room)); i++) {
-        g2.fillText(lines[i].slice(0, 46), PAD, y);
+        g2.fillText(clip(lines[i], 46), PAD, y);
         y += Math.round(W * 0.036);
       }
+      bootErrDrawn = true;
     } catch (e) {}
   }
 
@@ -12794,6 +12829,22 @@ function buildMountains(scene) {
 
     try {
       var canvas = XS.MG.takeScreenCanvas();
+      /* 故障注入：把「启动失败」这条路**真的走一遍**。
+       *
+       * 没有这个开关的时候，drawBootError 那段代码从来没有被渲染过 ——
+       * 写好了、打包了、看着没问题，但「字会不会排到屏幕外」
+       * 「中文换行对不对」「探测表会不会压住技术细节」一次都没人看过。
+       * 而它正是玩家在真机上唯一会看到的东西（Web 侧那次失败就是这么来的）。
+       *
+       * 位置是刻意的：必须在 takeScreenCanvas() **之后**、
+       * Core.init() **之前**。因为 drawBootError 要往 screenCanvas 上画，
+       * 提前抛的话它连画布都拿不到，会静默什么都不画 ——
+       * 于是「注入的故障」和「真的故障」表现得不一样，这个开关就白加了。
+       * 真实失败正是发生在 Core.init 里，顺序一致。
+       *
+       * 思路和 ?mgaudio=none 一样：把「宿主给不了」变成可复现的输入，
+       * 而不是等真机上碰运气。 */
+      if (has('mgfail')) throw new Error('Error creating WebGL context.');
       XS.Core.init(canvas);
       XS.UI.init();
       XS.World.init(XS.Core.scene);
@@ -13019,6 +13070,12 @@ function buildMountains(scene) {
          降级能跑通，但性能和特性都可能有差异，
          「画面和别人不一样」这类反馈有它就不用猜。 */
       glAttempt: (XS.Core && XS.Core.glAttempt) || null,
+      /* 失败面板到底画出来了没。
+         没有这一项时，「启动失败」在诊断里只表现为 state:'ready' ——
+         而「画了一张能看的错误页」和「画了一张被拉伸到只剩几个字的图」
+         在诊断里长得一模一样，只能靠人去看截图。
+         null = 根本没走到失败路径（正常启动）。 */
+      bootErrDrawn: bootErrDrawn,
       state: XS.Game.state(),
       t: +tGlobal.toFixed(2),
       frozen: frozen,

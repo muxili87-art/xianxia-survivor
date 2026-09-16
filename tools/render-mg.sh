@@ -106,6 +106,19 @@ if (d.canvas && d.screen) {
 }
 console.log("scene:", d.sceneChildren, "children | drawCalls:", d.drawCalls, "| tris:", d.triangles, "| prScale:", d.prScale);
 if (d.bootError) console.log("BOOT ERROR:", d.bootError.split("\n").slice(0,3).join(" / "));
+/* 失败面板到底画出来了没。
+   判据不能只看 `bootError` 有值 —— 那只说明「进过 catch」。
+   这段代码坏过一次：Core.init 里先建渲染器再 resize，渲染器一失败
+   画布就停在 300x150，被拉伸到全屏后文字放大十几倍、只剩几个字。
+   而当时诊断里 `bootError` 有值、`state:'ready'`，看起来完全正常 ——
+   只能靠人去看截图，而人没看。所以现在把「画出来了没」单独报一项。
+   bootErrDrawn: null = 没走到失败路径（正常启动）。 */
+if (d.bootErrDrawn !== undefined && d.bootErrDrawn !== null) {
+  console.log("bootErrDrawn:", d.bootErrDrawn);
+  if (d.bootErrDrawn !== true) {
+    console.log("  ⚠ 进了启动失败分支，但失败面板没画出来 —— 玩家看到的会是一片黑");
+  }
+}
 if (d.diagError) console.log("DIAG ERROR:", d.diagError);
 if (d.player) console.log("player:", JSON.stringify(d.player));
 /* 一局进行到哪儿了。这一项**必须**由游戏层提供：
