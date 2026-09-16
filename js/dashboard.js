@@ -150,6 +150,9 @@
     k.appendChild(kpi('平均斩妖', s.avgKills, ' 只', '单局均值', '#ff5a4d'));
     k.appendChild(kpi('广告完成率', s.adCompletionRate, '%', '人均曝光 ' + s.avgAdImp + ' 次', '#ffcf6b'));
     k.appendChild(kpi('复活使用率', s.reviveRate, '%', '人均 ' + s.avgRevives + ' 次', '#7dffa8'));
+    /* 濒死率：掉进「残血」的次数。它比「挨打次数」更能说明构筑强度 ——
+       挨打多可能只是站得近，被反复压到 1/3 血才是真的撑不住。 */
+    k.appendChild(kpi('濒死率', s.nearDeathRate || 0, '%', '人均 ' + (s.avgNearDeath || 0) + ' 次', '#ff9d5a'));
     k.appendChild(kpi('Boss 击杀率', s.bossKillRate, '%', 'Boss 击杀 / 出场', '#a97bff'));
     k.appendChild(kpi('进化达成率', s.evolveRate || 0, '%',
       '人均 ' + (s.avgEvolves || 0) + ' 个进化', '#ffd76a'));
@@ -247,7 +250,7 @@
     var t = $('runsTable');
     t.innerHTML = '<thead><tr>' +
       '<th>#</th><th>结果</th><th>时长</th><th>境界</th><th>斩妖</th>' +
-      '<th>造成伤害</th><th>承受伤害</th><th>复活</th><th>广告</th><th>帧率</th><th>败因</th>' +
+      '<th>造成伤害</th><th>承受伤害</th><th>濒死</th><th>复活</th><th>广告</th><th>帧率</th><th>败因</th>' +
       '</tr></thead><tbody>' +
       list.map(function (r) {
         var cls = r.result === 'win' ? 'win' : (r.result === 'die' ? 'die' : 'quit');
@@ -259,7 +262,8 @@
           '<td class="num">' + r.level + '</td>' +
           '<td class="num">' + r.kills + '</td>' +
           '<td class="num">' + r.dmgDealt + '</td>' +
-          '<td class="num">' + r.dmgTaken + '</td>' +
+          '<td class="num">' + (r.dmgTaken || 0) + '</td>' +
+          '<td class="num">' + (r.nearDeath || 0) + '</td>' +
           '<td class="num">' + (r.revives || 0) + '</td>' +
           '<td class="num">' + (r.adImpressions || 0) + '/' + (r.adCompleted || 0) + '</td>' +
           '<td class="num">' + (r.syncSim ? '模拟' : (r.fpsAvg || '-')) + '</td>' +

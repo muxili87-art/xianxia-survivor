@@ -113,7 +113,102 @@ for (const f of walk(target)) {
   }
 }
 
-/* ---------- 规则 B 想过，没做 ----------
+/* ---------- 规则 B：计数字段「只写一次、从不累加」 ----------
+ *
+ * 真实案例（js/telemetry.js 的 revives）：
+ *   字段在 startRun 的对象字面量里初始化成 0，
+ *   然后被 4 处读（其中一处是成就判定），
+ *   **全项目没有任何一处给它加过 1**。
+ *
+ * 后果比「少个统计」重得多：
+ *   - 成就「一气呵成 · 不复活通关」判的是
+ *     `c.win && (c.rec.revives || 0) === 0` —— 恒真。
+ *     复活两次再通关照样拿「不复活通关」。
+ *     **不是解锁不了，是白送**；白送没人会报 bug。
+ *   - 数据面板「复活使用率」永远 0%。
+ *
+ * 为什么单独立一条：这类 bug 的破绽是**读写不对称** ——
+ * 写只有出生那一次，读到处都是。而「读」看起来完全正常，
+ * 代码评审时眼睛会跟着读的路径走，永远走不到「谁写它」。
+ * 它产出的还是一个**像样的值**（0），不是 undefined、不是 NaN。
+ *
+ * 判据分两级，缺一不可：
+ *   ① 有没有**累加代码**（`cur.n++` / `+=` / `=`）；
+ *   ② 如果有，那些累加代码**在不在一个从没被调用过的函数里**。
+ *
+ * 第 ② 级是写完第 ① 级做反向对照时才补上的：
+ *   把调用点注释掉，规则**一声不吭** —— 因为 `Tele.revive` 的
+ *   **函数体**里有 `cur.revives++`，第 ① 级把它当成了「有人加」。
+ *   而「有代码能加」和「真的加了」是两件事。
+ *   （这正是本项目反复栽的那个坑：检查本身是安慰剂。）
+ *
+ * 范围刻意收窄到 js/telemetry.js 的 `cur` 记录 ——
+ * 那个对象的每一个数字字段按定义都是「本局累加量」，
+ * 所以「初始化后从未被累加」在那里一定是 bug。
+ * 不做全项目的通用版本：配置表里 `hp: 0` 这类常量本来就只读，
+ * 通用版会天天误报，而**爱误报的检查比没有检查更糟**（见文件末尾）。
+ */
+{
+  const telePath = join(ROOT, 'js/telemetry.js');
+  let tele = '';
+  try { tele = strip(readFileSync(telePath, 'utf8')); } catch (e) { tele = ''; }
+
+  const block = tele.match(/cur\s*=\s*\{([\s\S]*?)\n\s*\};/);
+  if (block) {
+    const zeros = [];
+    const re = /^\s*([A-Za-z_$][\w$]*)\s*:\s*0\s*,?\s*$/gm;
+    let m;
+    while ((m = re.exec(block[1]))) zeros.push(m[1]);
+
+    /* 把 telemetry.js 按 `Tele.X = function` 切成一个个函数体 */
+    const marks = [];
+    const rf = /Tele\.([A-Za-z_$][\w$]*)\s*=\s*function/g;
+    while ((m = rf.exec(tele))) marks.push({ name: m[1], at: m.index });
+    const bodies = marks.map((mk, i) => ({
+      name: mk.name,
+      body: tele.slice(mk.at, i + 1 < marks.length ? marks[i + 1].at : tele.length)
+    }));
+
+    /* 除 telemetry.js 之外的调用现场 */
+    let callers = '';
+    for (const f of walk(join(ROOT, 'js'))) {
+      if (f === telePath) continue;
+      callers += strip(readFileSync(f, 'utf8')) + '\n';
+    }
+
+    const incOf = n => new RegExp('cur\\.' + n + '\\s*(?:\\+\\+|--|\\+=|-=|=)(?!=)');
+    const dead = [];
+    for (const n of zeros) {
+      const inc = incOf(n);
+      /* ① 全项目（含 telemetry.js）有没有累加代码 */
+      const setterNames = bodies.filter(b => inc.test(b.body)).map(b => b.name);
+      const directOutside = inc.test(callers);
+      if (!setterNames.length && !directOutside) {
+        dead.push(n + '（从未被累加）');
+        continue;
+      }
+      /* ② 累加只写在 setter 里 —— 那就必须有别处在调这个 setter */
+      if (!directOutside && setterNames.length) {
+        const called = setterNames.some(sn =>
+          new RegExp('Tele\\.' + sn + '\\s*\\(').test(callers) ||
+          new RegExp('Telemetry\\.' + sn + '\\s*\\(').test(callers));
+        if (!called) {
+          dead.push(n + '（只有 ' + setterNames.map(s => 'Tele.' + s + '()').join('/')
+            + ' 会加它，而这个函数从来没有被调用过）');
+        }
+      }
+    }
+    if (dead.length) {
+      console.log('[计数未累加] js/telemetry.js 的对局记录字段恒为初始值：');
+      dead.forEach(d => console.log('  - ' + d));
+      console.log('  这些字段一定是有人在读（否则不会存在），读它的人拿到的是恒定的 0。');
+      console.log('  成就判定里出现这种字段 = 成就恒真或恒假，而两者都不会有人报 bug。');
+      bad += dead.length;
+    }
+  }
+}
+
+/* ---------- 规则 C 想过，没做 ----------
  *
  * 本来还想加一条「模板字符串里的杂散反引号」检查，因为
  * tools/minigame-sim.mjs 是用模板拼 HTML 页面的，注释里一个反引号
@@ -135,4 +230,4 @@ if (bad) {
   console.log('漏声明在严格模式下会抛 ReferenceError，而且只在那一行执行到时才抛。');
   process.exit(1);
 }
-console.log('静态检查通过：没有发现未声明的赋值。');
+console.log('静态检查通过：没有发现未声明的赋值，也没有发现只写一次的计数字段。');

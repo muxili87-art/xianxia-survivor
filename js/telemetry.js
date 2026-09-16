@@ -115,6 +115,24 @@
   };
   Tele.bossSpawn = function () { if (cur) cur.bossSpawns++; };
   Tele.bossKill = function () { if (cur) cur.bossKills++; };
+  /* 复活次数。
+   *
+   * 这个计数器**曾经从来没有被加过 1** —— 复活路径只做了
+   * `reviveLeft--`（局内变量）和 `Tele.event('revive')`（埋点事件），
+   * 而 `cur.revives` 一直是出生时的 0。
+   *
+   * 后果不是「少了个统计」这么轻：
+   *   1. 成就「一气呵成 · 不复活通关」的判据是
+   *      `c.win && (c.rec.revives || 0) === 0` —— 恒真。
+   *      看广告复活两次再通关，照样拿「不复活通关」。
+   *      **这不是「解锁不了」，是「白送」。** 比不可达更糟：
+   *      不可达玩家会报 bug，白送没人会发现。
+   *   2. 数据面板的「复活使用率」永远是 0%，人均 0 次。
+   *
+   * 这类字段的破绽是**读写不对称**：初始化写一次、到处读、
+   * 没有任何地方累加。静态检查里加了一条「只写一次、从不累加」
+   * 的规则来兜它（见 tools/lint-static.mjs）。 */
+  Tele.revive = function () { if (cur) cur.revives++; };
   Tele.collectXp = function (amount) { if (cur) cur.xpCollected += amount; };
   Tele.setCause = function (c) { if (cur) cur.cause = c; };
   Tele.setPos = function (x, z) { if (cur) { cur.pos.x = x; cur.pos.z = z; } };
@@ -187,6 +205,10 @@
       dmgDealt: Math.round(cur.dmgDealt),
       dmgTaken: Math.round(cur.dmgTaken),
       hitCount: cur.hitCount,
+      /* 「刚掉进残血」的次数（边沿计数，不是残血帧数）。
+         难度分析里它比 hitCount 更有用：挨打多不代表紧张，
+         反复被压到 1/3 血才说明这个构筑撑不住。 */
+      nearDeath: cur.nearDeath,
       revives: cur.revives,
       bossSpawns: cur.bossSpawns,
       bossKills: cur.bossKills,
@@ -239,7 +261,7 @@
       avgDur: 0, medianDur: 0,
       avgLevel: 0, avgKills: 0, avgDps: 0,
       avgAdImp: 0, avgAdDone: 0, adCompletionRate: 0,
-      avgRevives: 0, reviveRate: 0,
+      avgRevives: 0, reviveRate: 0, avgNearDeath: 0, nearDeathRate: 0,
       bossKillRate: 0,
       fpsAvg: 0, fpsMin: 999,
       durHistogram: [],
@@ -323,6 +345,11 @@
     out.adCompletionRate = sAdImp ? +(sAdDone / sAdImp * 100).toFixed(1) : 0;
     out.avgRevives = +(sRev / n).toFixed(2);
     out.reviveRate = +(runs.filter(function (r) { return (r.revives || 0) > 0; }).length / n * 100).toFixed(1);
+    /* 濒死次数：比「挨打次数」更能说明构筑强度。
+       注意旧存档里没有这个字段，所以一律 `|| 0`，
+       不能让一条老记录把整个均值变成 NaN。 */
+    out.avgNearDeath = +(runs.reduce(function (a, r) { return a + (r.nearDeath || 0); }, 0) / n).toFixed(2);
+    out.nearDeathRate = +(runs.filter(function (r) { return (r.nearDeath || 0) > 0; }).length / n * 100).toFixed(1);
     out.bossKillRate = bossSpawn ? +(bossKill / bossSpawn * 100).toFixed(1) : 0;
     out.fpsAvg = fpsN ? +(sFps / fpsN).toFixed(1) : 0;
     if (out.fpsMin === 999) out.fpsMin = 0;

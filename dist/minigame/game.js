@@ -4004,7 +4004,7 @@
 })(window);
 
 
-/* ===== js/telemetry.js (354 行) ===== */
+/* ===== js/telemetry.js (381 行) ===== */
 /* ============================================================
  * 数据打点
  * 依赖：仅 XS.Platform（无 THREE 依赖，便于数据面板页单独加载）
@@ -4122,6 +4122,24 @@
   };
   Tele.bossSpawn = function () { if (cur) cur.bossSpawns++; };
   Tele.bossKill = function () { if (cur) cur.bossKills++; };
+  /* 复活次数。
+   *
+   * 这个计数器**曾经从来没有被加过 1** —— 复活路径只做了
+   * `reviveLeft--`（局内变量）和 `Tele.event('revive')`（埋点事件），
+   * 而 `cur.revives` 一直是出生时的 0。
+   *
+   * 后果不是「少了个统计」这么轻：
+   *   1. 成就「一气呵成 · 不复活通关」的判据是
+   *      `c.win && (c.rec.revives || 0) === 0` —— 恒真。
+   *      看广告复活两次再通关，照样拿「不复活通关」。
+   *      **这不是「解锁不了」，是「白送」。** 比不可达更糟：
+   *      不可达玩家会报 bug，白送没人会发现。
+   *   2. 数据面板的「复活使用率」永远是 0%，人均 0 次。
+   *
+   * 这类字段的破绽是**读写不对称**：初始化写一次、到处读、
+   * 没有任何地方累加。静态检查里加了一条「只写一次、从不累加」
+   * 的规则来兜它（见 tools/lint-static.mjs）。 */
+  Tele.revive = function () { if (cur) cur.revives++; };
   Tele.collectXp = function (amount) { if (cur) cur.xpCollected += amount; };
   Tele.setCause = function (c) { if (cur) cur.cause = c; };
   Tele.setPos = function (x, z) { if (cur) { cur.pos.x = x; cur.pos.z = z; } };
@@ -4194,6 +4212,10 @@
       dmgDealt: Math.round(cur.dmgDealt),
       dmgTaken: Math.round(cur.dmgTaken),
       hitCount: cur.hitCount,
+      /* 「刚掉进残血」的次数（边沿计数，不是残血帧数）。
+         难度分析里它比 hitCount 更有用：挨打多不代表紧张，
+         反复被压到 1/3 血才说明这个构筑撑不住。 */
+      nearDeath: cur.nearDeath,
       revives: cur.revives,
       bossSpawns: cur.bossSpawns,
       bossKills: cur.bossKills,
@@ -4246,7 +4268,7 @@
       avgDur: 0, medianDur: 0,
       avgLevel: 0, avgKills: 0, avgDps: 0,
       avgAdImp: 0, avgAdDone: 0, adCompletionRate: 0,
-      avgRevives: 0, reviveRate: 0,
+      avgRevives: 0, reviveRate: 0, avgNearDeath: 0, nearDeathRate: 0,
       bossKillRate: 0,
       fpsAvg: 0, fpsMin: 999,
       durHistogram: [],
@@ -4330,6 +4352,11 @@
     out.adCompletionRate = sAdImp ? +(sAdDone / sAdImp * 100).toFixed(1) : 0;
     out.avgRevives = +(sRev / n).toFixed(2);
     out.reviveRate = +(runs.filter(function (r) { return (r.revives || 0) > 0; }).length / n * 100).toFixed(1);
+    /* 濒死次数：比「挨打次数」更能说明构筑强度。
+       注意旧存档里没有这个字段，所以一律 `|| 0`，
+       不能让一条老记录把整个均值变成 NaN。 */
+    out.avgNearDeath = +(runs.reduce(function (a, r) { return a + (r.nearDeath || 0); }, 0) / n).toFixed(2);
+    out.nearDeathRate = +(runs.filter(function (r) { return (r.nearDeath || 0) > 0; }).length / n * 100).toFixed(1);
     out.bossKillRate = bossSpawn ? +(bossKill / bossSpawn * 100).toFixed(1) : 0;
     out.fpsAvg = fpsN ? +(sFps / fpsN).toFixed(1) : 0;
     if (out.fpsMin === 999) out.fpsMin = 0;
@@ -8581,7 +8608,7 @@ function buildMountains(scene) {
 })(typeof window !== 'undefined' ? window : this);
 
 
-/* ===== js/game.js (3277 行) ===== */
+/* ===== js/game.js (3289 行) ===== */
 /* ============================================================
  * 玩法核心：波次 / AI / 自动战斗 / 经验 / 功法 / 结算
  * ============================================================ */
@@ -8709,6 +8736,11 @@ function buildMountains(scene) {
      是一种很便宜的「冲击」信号，比单纯震屏更细腻。 */
   var abPulse = 0;
   var hpBeat = 0;
+  /* 残血状态的上一次取值。用来把「进入残血」判成**边沿**而不是**电平** ——
+     这是个每帧都跑的判断，按电平计会把一次濒死记成几百次。
+     同时它也是 Tele.nearDeath 的唯一调用点（那个字段原来
+     定义了字段、定义了累加函数，却既没人调用也没人读，见 lint-static 规则 B）。 */
+  var nearDeathOn = false;
   var lastCause = 'unknown';
   var statDmgDealt = 0;
   var statDmgTaken = 0;
@@ -9136,6 +9168,7 @@ function buildMountains(scene) {
     doubleUsed = false; boostOffered = false; boostUsed = false;
     hitstop = 0; lastCause = 'unknown';
     statDmgDealt = 0; statDmgTaken = 0;
+    nearDeathOn = false;
     liveFpsAvg = 0; _fpsAcc = 0; _fpsN = 0; _fpsWorst = 999;
     runFinished = false;
     runSeq++;
@@ -10380,7 +10413,12 @@ function buildMountains(scene) {
        血条数字是「理性信息」，心跳才是「生理压力」——
        后者才是让玩家真的紧张起来的东西。 */
     var hpFrac = player ? player.hp / player.maxHp : 1;
-    if (state === 'playing' && hpFrac < 0.34) {
+    var nearNow = state === 'playing' && hpFrac < 0.34;
+    /* 只在**刚掉进**残血的那一刻记一次。按帧记的话这个指标
+       会变成「残血持续了多少帧」，既看不懂也和难度无关。 */
+    if (nearNow && !nearDeathOn) Tele.nearDeath();
+    nearDeathOn = nearNow;
+    if (nearNow) {
       var sev = 1 - hpFrac / 0.34;
       var beat = Math.pow(Math.max(0, Math.sin(t * 4.6)), 5);
       hpBeat = Math.max(hpBeat, beat * sev);
@@ -11747,6 +11785,7 @@ function buildMountains(scene) {
         return;
       }
       reviveLeft--;
+      Tele.revive();
       Tele.event('revive', { t: runT, left: reviveLeft });
       player.hp = player.maxHp;
       player.invuln = 3.0;

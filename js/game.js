@@ -125,6 +125,11 @@
      是一种很便宜的「冲击」信号，比单纯震屏更细腻。 */
   var abPulse = 0;
   var hpBeat = 0;
+  /* 残血状态的上一次取值。用来把「进入残血」判成**边沿**而不是**电平** ——
+     这是个每帧都跑的判断，按电平计会把一次濒死记成几百次。
+     同时它也是 Tele.nearDeath 的唯一调用点（那个字段原来
+     定义了字段、定义了累加函数，却既没人调用也没人读，见 lint-static 规则 B）。 */
+  var nearDeathOn = false;
   var lastCause = 'unknown';
   var statDmgDealt = 0;
   var statDmgTaken = 0;
@@ -552,6 +557,7 @@
     doubleUsed = false; boostOffered = false; boostUsed = false;
     hitstop = 0; lastCause = 'unknown';
     statDmgDealt = 0; statDmgTaken = 0;
+    nearDeathOn = false;
     liveFpsAvg = 0; _fpsAcc = 0; _fpsN = 0; _fpsWorst = 999;
     runFinished = false;
     runSeq++;
@@ -1796,7 +1802,12 @@
        血条数字是「理性信息」，心跳才是「生理压力」——
        后者才是让玩家真的紧张起来的东西。 */
     var hpFrac = player ? player.hp / player.maxHp : 1;
-    if (state === 'playing' && hpFrac < 0.34) {
+    var nearNow = state === 'playing' && hpFrac < 0.34;
+    /* 只在**刚掉进**残血的那一刻记一次。按帧记的话这个指标
+       会变成「残血持续了多少帧」，既看不懂也和难度无关。 */
+    if (nearNow && !nearDeathOn) Tele.nearDeath();
+    nearDeathOn = nearNow;
+    if (nearNow) {
       var sev = 1 - hpFrac / 0.34;
       var beat = Math.pow(Math.max(0, Math.sin(t * 4.6)), 5);
       hpBeat = Math.max(hpBeat, beat * sev);
@@ -3163,6 +3174,7 @@
         return;
       }
       reviveLeft--;
+      Tele.revive();
       Tele.event('revive', { t: runT, left: reviveLeft });
       player.hp = player.maxHp;
       player.invuln = 3.0;
